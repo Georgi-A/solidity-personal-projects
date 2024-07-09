@@ -13,6 +13,9 @@ module.exports = {
     sepolia: {
       url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       accounts: [SEPOLIA_PRIVATE_KEY]
+    },
+    forking: {
+      url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
     }
   },
   etherscan: {

@@ -47,11 +47,9 @@ contract EthPriceBetting is AutomationCompatibleInterface {
     );
 
     // Constructor to initialize the contract with the betting duration and setting initial values
-    constructor(uint256 _bettingDurationMinutes) {
+    constructor(address _dataFeed, uint256 _bettingDurationMinutes) {
         admin = msg.sender;
-        dataFeed = AggregatorV3Interface(
-            0x694AA1769357215DE4FAC081bf1f309aDC325306
-        );
+        dataFeed = AggregatorV3Interface(_dataFeed);
         openBetTime = block.timestamp;
         closingBetTime = openBetTime + (_bettingDurationMinutes * 1 minutes);
     }
@@ -84,8 +82,7 @@ contract EthPriceBetting is AutomationCompatibleInterface {
             "You have existing bet"
         );
         require(msg.sender == tx.origin, "Only EOA can participate");
-        require(currentTime >= openBetTime, "Betting not open.");
-        require(currentTime <= closingBetTime, "Betting time finished.");
+        require(currentTime <= closingBetTime, "Betting time finished");
 
         uint256 calculatedFee = (msg.value * FEE) / 10000;
         uint256 netBetAmount = msg.value - calculatedFee;
