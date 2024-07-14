@@ -47,7 +47,7 @@ contract EthPriceBetting is AutomationCompatibleInterface {
     );
 
     // Constructor to initialize the contract with the betting duration and setting initial values
-    constructor(address _dataFeed, uint256 _bettingDurationMinutes) {
+    constructor(address _dataFeed, uint256 _bettingDurationMinutes) payable {
         admin = msg.sender;
         dataFeed = AggregatorV3Interface(_dataFeed);
         openBetTime = block.timestamp;
