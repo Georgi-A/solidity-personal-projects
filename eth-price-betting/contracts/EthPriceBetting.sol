@@ -56,7 +56,7 @@ contract EthPriceBetting is AutomationCompatibleInterface {
 
     // Modifier to restrict access to admin-only functions
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Not the owner");
+        require(msg.sender == admin, "Only admin can execute");
         _;
     }
 
@@ -110,9 +110,9 @@ contract EthPriceBetting is AutomationCompatibleInterface {
         bytes32 hashedShort = keccak256(abi.encodePacked("short"));
 
         bool isWinningBet = (hashedPosition == hashedLong &&
-            addressBet.priceAtPlacedBet >= closingBetEthPrice) ||
+            addressBet.priceAtPlacedBet <= closingBetEthPrice) ||
             (hashedPosition == hashedShort &&
-                addressBet.priceAtPlacedBet <= closingBetEthPrice);
+                addressBet.priceAtPlacedBet >= closingBetEthPrice);
 
         uint payoutAmount = isWinningBet ? addressBet.betAmount * 2 : 0;
 
@@ -138,6 +138,11 @@ contract EthPriceBetting is AutomationCompatibleInterface {
 
     // Function for the admin to open a new betting period with a specified end time
     function openNewBettingPeriod(uint256 newEndTime) external onlyAdmin {
+        require(
+            block.timestamp >= closingBetTime,
+            "Betting period not finished"
+        );
+
         openBetTime = block.timestamp;
         closingBetTime = newEndTime;
         closingBetEthPrice = 0;

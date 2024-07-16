@@ -3,6 +3,7 @@ const {
 } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { bigint } = require("hardhat/internal/core/params/argumentTypes");
 
 describe("Eth Price Betting Contract", function () {
 
@@ -13,11 +14,11 @@ describe("Eth Price Betting Contract", function () {
     const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
     mockAggregator = await MockV3Aggregator.deploy(3000 * 10 ** 8); // Initial price set to 3000
 
-    [owner, addr1] = await ethers.getSigners();
+    [owner, addr1, forwarder] = await ethers.getSigners();
     funds = ethers.parseEther("1");
 
     const EthContract = await ethers.getContractFactory("EthPriceBetting");
-    contract = await EthContract.deploy(mockAggregator.target, "60", { value: ethers.parseEther("2")});
+    contract = await EthContract.deploy(mockAggregator.target, "60", { value: ethers.parseEther("1")});
   });
 
   describe("Deploy betting contract and mockAggregator", function () {
@@ -55,7 +56,6 @@ describe("Eth Price Betting Contract", function () {
       const addrBet = await contract.bets(addr1);
 
       expect(await addrBet.betAmount).to.be.equal(netBetAmount);
-      
     });
   })
 
@@ -79,14 +79,79 @@ describe("Eth Price Betting Contract", function () {
     });
 
     it("Should revert for low contract balance", async function () {
-      funds = ethers.parseEther("2");
+      funds = ethers.parseEther("3");
+      await contract.setForwarder(forwarder.address);
+      await mockAggregator.setAnswer(3005);
       await contract.connect(addr1).createBet("long", {value: funds});
       await network.provider.send("evm_increaseTime", [3605]);
-      await mockAggregator.setAnswer(3005);
-      console.log(await mockAggregator.getAnswer());
-      
+      await contract.connect(forwarder).performUpkeep("0x");
+
       await expect(contract.connect(addr1).settleBet()).to.be.revertedWith("Not enough funds, come back later");
+    });
+
+    it("Should revert for settling twice", async function () {
+      await contract.setForwarder(forwarder.address);
+      await mockAggregator.setAnswer(2990);
+      await contract.connect(addr1).createBet("short", {value: funds});
+      await network.provider.send("evm_increaseTime", [3605]);
+      await contract.connect(forwarder).performUpkeep("0x");
+      await contract.connect(addr1).settleBet();
+
+      await expect(contract.connect(addr1).settleBet()).to.be.revertedWith("You have not participated");;
+    });
+
+    it("Should receive winning funds for long position and emit", async function () {
+      await contract.setForwarder(forwarder.address);
+      await mockAggregator.setAnswer(3005);
+      await contract.connect(addr1).createBet("long", {value: funds});
+      await network.provider.send("evm_increaseTime", [3605]);
+      await contract.connect(forwarder).performUpkeep("0x");
+
+      const closingBetPrice = BigInt(3005);
+      const fee = (BigInt(funds) * BigInt(200))/ BigInt(10000);
+      const payoutAmount = (funds - fee) * BigInt(2);
+
+      await expect(contract.connect(addr1).settleBet())
+      .to.emit(contract, "Settled").withArgs(addr1, payoutAmount, closingBetPrice).and.to.be.fulfilled;
+    });
+
+    it("Should receive winning funds for short position and emit", async function () {
+      await contract.setForwarder(forwarder.address);
+      await mockAggregator.setAnswer(2990);
+      await contract.connect(addr1).createBet("short", {value: funds});
+      await network.provider.send("evm_increaseTime", [3605]);
+      await contract.connect(forwarder).performUpkeep("0x");
+
+      const closingBetPrice = BigInt(2990);
+      const fee = (BigInt(funds) * BigInt(200))/ BigInt(10000);
+      const payoutAmount = (funds - fee) * BigInt(2);
+
+      await expect(contract.connect(addr1).settleBet())
+      .to.emit(contract, "Settled").withArgs(addr1, payoutAmount, closingBetPrice).and.to.be.fulfilled;
+    });
+
+    it("Should not receive funds", async function () {
+      await contract.setForwarder(forwarder.address);
+      await mockAggregator.setAnswer(3000);
+      await contract.connect(addr1).createBet("long", {value: funds});
+      await mockAggregator.setAnswer(2990);
+      await network.provider.send("evm_increaseTime", [3605]);
+      await contract.connect(forwarder).performUpkeep("0x");
+      const closingBetPrice = BigInt(2990);
+      const payoutAmount = BigInt(0);
+
+      await expect(contract.connect(addr1).settleBet())
+        .to.emit(contract, "Settled").withArgs(addr1.address, payoutAmount, closingBetPrice);
     });
   })
 
+  describe("Withdraw contract balance", function () {
+    it("Should revert with not admin", async function () {
+      await expect(contract.connect(addr1).withdraw()).to.be.revertedWith("Only admin can execute");
+    });
+
+    it("Should withdraw", async function () {
+      await expect(contract.connect(owner).withdraw()).to.be.fulfilled;
+    });
+  })
 });
