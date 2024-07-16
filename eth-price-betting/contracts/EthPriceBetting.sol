@@ -144,7 +144,7 @@ contract EthPriceBetting is AutomationCompatibleInterface {
     }
 
     // Function to set the forwarder address
-    function setForwarder(address _forwarderAddr) external {
+    function setForwarder(address _forwarderAddr) external onlyAdmin {
         require(_forwarderAddr != address(0), "Cant be address 0");
         forwarderAddr = _forwarderAddr;
     }
