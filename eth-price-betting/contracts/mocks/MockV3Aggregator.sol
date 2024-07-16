@@ -8,10 +8,6 @@ contract MockV3Aggregator {
         answer = _initialAnswer;
     }
 
-    function decimals() external pure returns (uint8) {
-        return 8;
-    }
-
     function latestRoundData()
         external
         view

@@ -154,4 +154,35 @@ describe("Eth Price Betting Contract", function () {
       await expect(contract.connect(owner).withdraw()).to.be.fulfilled;
     });
   })
+
+  describe("Open new bet", function () {
+    it("Should revert with not admin", async function () {
+      await expect(contract.connect(addr1).openNewBettingPeriod(1229992)).to.be.revertedWith("Only admin can execute");
+    });
+
+    it("Should revert for betting period not finished", async function () {
+      await expect(contract.connect(owner).openNewBettingPeriod(1229992)).to.be.revertedWith("Betting period not finished");
+    });
+
+    it("Should set new opening time", async function () {
+      await network.provider.send("evm_increaseTime", [3605]);
+      const newTime = 1721185417;
+      await contract.connect(owner).openNewBettingPeriod(newTime);
+      expect(await contract.connect(addr1).getEndTime()).to.be.equal(newTime);
+    });
+  })
+
+  describe("Set forwarder", function () {
+    it("Should revert with not admin", async function () {
+      await expect(contract.connect(addr1).setForwarder(owner.address)).to.be.revertedWith("Only admin can execute");
+    });
+
+    it("Should revert for setting address(0)", async function () {
+      await expect(contract.setForwarder(ethers.ZeroAddress)).to.be.revertedWith("Cant be address 0");
+    });
+
+    it("Should set forwarder address", async function () {
+      await expect(contract.setForwarder(forwarder)).to.be.fulfilled;
+    });
+  })
 });
