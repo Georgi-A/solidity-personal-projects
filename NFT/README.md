@@ -1,1 +1,1 @@
-NFT related projects 
+NFT related projects
