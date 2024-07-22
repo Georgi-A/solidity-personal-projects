@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -9,7 +9,7 @@ contract OpenWorld {
 
     struct Item {
         uint256 itemId;
-        address collectionContract;
+        IERC721 collectionContract;
         uint256 tokenId;
         uint256 price;
         address payable seller;
@@ -31,20 +31,20 @@ contract OpenWorld {
             address(this),
             _tokenId
         );
-        Item collection = new Item(
+        Item memory collection = Item(
             itemsCounter,
-            _collectionAddr,
+            IERC721(_collectionAddr),
             _tokenId,
             _price,
-            msg.sender,
+            payable(msg.sender),
             false
         );
-        listedItems[itemId] = collection;
+        listedItems[itemsCounter] = collection;
     }
 
     function purchase(uint256 _itemId) external payable {
         require(listedItems[_itemId].isSold != true, "Item sold");
-        require(listedItems[_itemId] != 0, "Item does not exist");
+        require(listedItems[_itemId].itemId != 0, "Item does not exist");
         require(
             msg.value == listedItems[_itemId].price,
             "Amount does not match"
