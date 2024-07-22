@@ -1,6 +1,3 @@
-const {
-  loadFixture,
-} = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { bigint } = require("hardhat/internal/core/params/argumentTypes");
