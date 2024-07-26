@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MetanaToken is ERC20, Ownable(msg.sender) {
     constructor() ERC20("MetanaToken", "MNT") {}
 
-    function mint(address to, uint256 value) external {
+    function mint(address to, uint256 value) external onlyOwner {
         _mint(to, value);
     }
 }
