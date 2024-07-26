@@ -2,48 +2,23 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-interface IToken {
-    function decimals() external returns (uint256);
-
-    function transferFrom(
-        address from,
-        address to,
-        uint256 value
-    ) external returns (bool);
-
-    function balanceOf(address account) external view returns (uint256);
-}
-
-contract NFTToken is ERC721 {
-    IToken metanaToken;
+contract NFTToken is ERC721, Ownable(msg.sender) {
     uint256 public nftSupply;
-    uint256 constant MAX_SUPPLY = 10;
-    uint256 dec;
+    uint256 constant MAX_SUPPLY = 100;
 
-    constructor(address _token) ERC721("NFTToken", "NFT") {
-        metanaToken = IToken(_token);
-        dec = metanaToken.decimals();
-    }
+    constructor(address _token) ERC721("NFTToken", "NFT") {}
 
-    function safeMint() external {
-        require(
-            price() <= tokenBalance(),
-            "Not enough money, or not approved transaction."
-        );
-        require(nftSupply < MAX_SUPPLY, "All NFTs have been minted");
-        metanaToken.transferFrom(msg.sender, address(this), price());
-        _safeMint(msg.sender, nftSupply, "");
+    function safeMint() external payable {
+        require(msg.value == 0.2 ether, "Mint requires 2 eth");
         nftSupply++;
+        require(nftSupply <= MAX_SUPPLY, "All NFTs have been minted");
+        _safeMint(msg.sender, nftSupply, "");
     }
 
-    function tokenBalance() public view returns (uint256) {
-        return metanaToken.balanceOf(msg.sender);
-    }
-
-    function price() public view returns (uint256) {
-        uint256 nftPrice = 10 * 10 ** dec;
-        return nftPrice;
+    function withdraw() external onlyOwner {
+        (bool sent, ) = msg.sender.call{value: address(this).balance}("");
+        require(sent, "Transaction failed");
     }
 }
