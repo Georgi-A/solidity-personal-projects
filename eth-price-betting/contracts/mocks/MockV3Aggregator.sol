@@ -8,18 +8,6 @@ contract MockV3Aggregator {
         answer = _initialAnswer;
     }
 
-    function decimals() external pure returns (uint8) {
-        return 8;
-    }
-
-    function description() external pure returns (string memory) {
-        return "Mock Chainlink Aggregator";
-    }
-
-    function version() external pure returns (uint256) {
-        return 1;
-    }
-
     function latestRoundData()
         external
         view
@@ -35,6 +23,10 @@ contract MockV3Aggregator {
     }
 
     function setAnswer(int256 _answer) external {
-        answer = _answer;
+        answer = _answer * 10 ** 8;
+    }
+
+    function getAnswer() external view returns (int256) {
+        return answer / 10 ** 8;
     }
 }
