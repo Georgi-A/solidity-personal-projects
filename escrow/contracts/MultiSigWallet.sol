@@ -50,7 +50,7 @@ contract MultiSigWallet {
     );
     event Withdraw(address indexed spender, uint256 indexed amount);
 
-    // @notice Storing participants in mapping
+    // @notice Storing users in participants mapping
     // @dev payable at deployment
     constructor(address[] memory _participants) payable {
         for (uint i = 0; i < _participants.length; i++) {
