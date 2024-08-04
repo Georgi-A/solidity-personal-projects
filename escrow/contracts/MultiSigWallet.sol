@@ -48,6 +48,7 @@ contract MultiSigWallet {
         VoteOption vote,
         RequestState status
     );
+    event ChangeVote(address indexed voter, VoteOption newVote);
     event Withdraw(address indexed spender, uint256 indexed amount);
 
     // @notice Storing users in participants mapping
@@ -138,7 +139,10 @@ contract MultiSigWallet {
     // @param _id of request
     function changeVote(uint256 _id) external {
         Request storage request = requests[_id];
-        require(request.votes[msg.sender].hasVoted, "Have not voted");
+        require(
+            request.votes[msg.sender].hasVoted,
+            "Have not voted/Not participant"
+        );
         require(
             _getRequestStatus(request) == RequestState.Active,
             "Voting closed"
@@ -154,6 +158,8 @@ contract MultiSigWallet {
             request.votesAgainst--;
             request.votes[msg.sender].vote = VoteOption.For;
         }
+
+        emit ChangeVote(msg.sender, request.votes[msg.sender].vote);
     }
 
     // @notice Get Wallet balance
@@ -213,12 +219,14 @@ contract MultiSigWallet {
             requiredVotes <= _request.votesAgainst || votesCount < requiredVotes
         ) {
             status = RequestState.Rejected;
-            // Status is Executed once funds are withdrawn
-        } else if (_request.spent == true) {
-            status = RequestState.Executed;
             // Status is Disputed when For/ Against have equal number
         } else {
             status = RequestState.Disputed;
+        }
+
+        // Status is Executed once funds are withdrawn
+        if (_request.spent == true) {
+            status = RequestState.Executed;
         }
     }
 }
