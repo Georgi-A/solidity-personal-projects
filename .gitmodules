@@ -1,0 +1,9 @@
+[submodule "foundry/eth-price-betting/lib/forge-std"]
+	path = foundry/eth-price-betting/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "foundry/eth-price-betting/lib/solmate"]
+	path = foundry/eth-price-betting/lib/solmate
+	url = https://github.com/transmissions11/solmate
+[submodule "foundry/eth-price-betting/lib/foundry-chainlink-toolkit"]
+	path = foundry/eth-price-betting/lib/foundry-chainlink-toolkit
+	url = https://github.com/smartcontractkit/foundry-chainlink-toolkit
