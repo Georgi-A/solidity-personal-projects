@@ -1,0 +1,3 @@
+[submodule "foundry/eth-price-betting/lib/forge-std"]
+	path = foundry/eth-price-betting/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
