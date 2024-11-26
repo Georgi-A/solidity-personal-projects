@@ -1,215 +1,326 @@
 // SPDX-License-Identifier: UNLICENCED
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Errors} from "src/utils/Errors.sol";
 
-error AuctionDurationOutOfBounds(uint256 maxDuration, uint256 minDuration, uint256 duration);
-error NotOwnerOfToken();
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+/// @title English Auction for NFTs
+/// @notice This smart contract allows users to sell and bid on NFTs. Owner receives 0.3% for each sold NFT.
+/// @dev The smart contract does not hold ERC721 tokens. Instead, expects seller to send NFT to highest bidder within 1 day after the auction has finished.
+/// In case seller does not send the NFT to the buyer or NFT has changed owner outside auction, seller will be blacklisted and will not be allowed to sell anymore,
+/// while buyer/bidder will receive refund for that auction. Payments are done with ERC20 tokens, seller can select from allowed currencies. Also bidders can swap tokens within smart contract.
+/// 'swapTokens' function uses Chainlink Oracle integration.
 contract NFTAuction {
+    using SafeERC20 for IERC20;
+
+    event LogListItem(
+        address indexed seller, address indexed collectionContract, uint256 indexed tokenId, uint256 deadline
+    );
+    event LogBid(address indexed bidder, uint256 indexed highestBid, uint256 amount);
+    event LogBidHalfTokenUp(address indexed bidder, uint256 indexed highestBid, uint256 amount);
+    event LogSellerWithdraw(address indexed seller, uint256 amount, uint256 feeAmount);
+    event LogBidderWithdraw(address indexed bidder, uint256 refund);
+    event LogBlackListSeller(address indexed bidder, address indexed seller, uint256 refund);
+    event LogWithdrawFees(address indexed owner, address indexed currency, uint256 amount);
+
+    /// @notice Status of auction
     enum Status {
         OPEN,
         CLOSED
     }
 
-    struct Bidder {
-        uint256 bidAmount;
-        bool participated;
-    }
-
+    /// @param auctionId The id of auction
+    /// @param collectionContract The address of NFT
+    /// @param tokenId The id of token
+    /// @param seller Address of seller
+    /// @param deadline The end time of auction
+    /// @param currency ERC20 token used for payment
+    /// @param reservePrice The ask price
+    /// @param highestBid Current highest bid
+    /// @param highestBidder Current auction winner
+    /// @param status Status of auction
     struct Auction {
         uint256 auctionId;
-        IERC721 collectionContract;
+        address collectionContract;
         uint256 tokenId;
         address seller;
         uint256 deadline;
-        IERC20 currency;
+        address currency;
         uint256 reservePrice;
         uint256 highestBid;
         address highestBidder;
         Status status;
     }
 
+    /// the maximum time an item can be listed for
     uint256 public constant MAX_DURATION = 1 days;
+    /// the minimum time an item can be listed for
     uint256 public constant MIN_DURATION = 2 hours;
+    /// used in 'bidHalfTokenUp' function, allowing bidder to directly outbid by half token
     uint256 public constant HALF_TOKEN = 5 * 10 ** 17;
+    /// fee for sold NFT - 0.3%
     uint256 public constant FEE = 300;
+    /// owner of smart contract
     address public immutable owner;
 
+    /// total auctions count
     uint256 public auctionCount;
-    IERC20[] private allowedCurrencies;
-    mapping(IERC20 => bool) private currencies;
-    mapping(address user => bool) private blackList;
-    mapping(uint256 tokenId => Auction) private auctions;
-    mapping(address bidder => mapping(uint256 auctionId => Bidder)) private bidders;
-    mapping(address owner => mapping(IERC721 addressItem => uint256 tokenId)) private listedItems;
-    mapping(address owner => mapping(IERC20 tokenAddress => uint256 feeAmount)) private ownerAccumulatedAmounts;
+    /// Allowed currencies to trade with
+    address[] private allowedCurrencies;
+    /// Needed for check if currency is allowed
+    mapping(address => bool) private currencies;
+    /// Records blacklisted sellers
+    mapping(address seller => bool) private blackList;
+    /// Auction where seller was blacklisted
+    mapping(address seller => uint256 actionId) private blacklistedFor;
+    /// Auction state
+    mapping(uint256 auctionId => Auction) private auctions;
+    /// Records bidder current bid amounts
+    mapping(address bidder => mapping(uint256 auctionId => uint256 amount)) private bidders;
+    /// Records seller listed items
+    mapping(address seller => mapping(address addressItem => uint256 tokenId)) private listedItems;
+    /// Records the accumulated fees of owner
+    mapping(address tokenAddress => uint256 feeAmount) private ownerAccumulatedFees;
 
-    constructor(IERC20[] memory _allowedCurrencies) {
+    constructor(address[] memory _allowedCurrencies) {
         owner = msg.sender;
 
+        // Feed in allowed currencies
         for (uint256 i; i < _allowedCurrencies.length; i++) {
-            currencies[_allowedCurrencies[i]] = true;
+            currencies[address(_allowedCurrencies[i])] = true;
             allowedCurrencies.push(_allowedCurrencies[i]);
         }
     }
 
-    modifier bidRequirements(uint256 auctionNumber, uint256 amount) {
-        Auction memory auction = auctions[auctionNumber];
-        require(auctionNumber == auction.auctionId, "Auction does not exist");
-        require(block.timestamp <= auction.deadline, "Auction has finished");
-        require(amount > 0, "Amount cannot be 0");
-        require(amount > auction.reservePrice, "Auction amount lower than reservePrice");
-        require(
-            amount + bidders[msg.sender][auctionNumber].bidAmount > auction.highestBid, "Amount lower than higher bid"
-        );
-        require(IERC20(auction.currency).balanceOf(msg.sender) >= amount, "Not enough funds");
+    modifier onlyOwner() {
+        require(msg.sender == owner, Errors.OnlyOwner());
         _;
     }
 
-    function listItem(
-        IERC721 _collectionContract,
-        uint256 _tokenId,
-        uint256 _duration,
-        IERC20 _currency,
-        uint256 _reservePrice
-    ) external {
+    modifier listItemRequirements(
+        address collectionContract,
+        uint256 tokenId,
+        uint256 duration,
+        address currency,
+        uint256 reservePrice
+    ) {
         require(
-            _duration >= MIN_DURATION && _duration <= MAX_DURATION,
-            AuctionDurationOutOfBounds(MAX_DURATION, MIN_DURATION, _duration)
+            duration >= MIN_DURATION && duration <= MAX_DURATION,
+            Errors.AuctionDurationOutOfBounds(MIN_DURATION, MAX_DURATION)
         );
-        require(_collectionContract.ownerOf(_tokenId) == msg.sender, NotOwnerOfToken());
-        require(_collectionContract != IERC721(address(0)), "Auction: Invalid collection contract");
-        require(listedItems[msg.sender][_collectionContract] == 0, "Auction: Item already listed");
-        require(_reservePrice > 0, "Auction: Reserve price must be greater than 0");
-        require(currencies[_currency], "Auction: Currency not allowed");
+        require(
+            IERC721(collectionContract).ownerOf(tokenId) == msg.sender,
+            Errors.NotOwnerOfToken(IERC721(collectionContract).ownerOf(tokenId))
+        );
+        require(listedItems[msg.sender][collectionContract] == 0, Errors.ItemAlreadyListed());
+        require(reservePrice > 0, Errors.ZeroInput());
+        require(currencies[currency], Errors.CurrencyNotAllowed());
+        _;
+    }
 
+    modifier bidRequirements(uint256 auctionId, uint256 amount) {
+        Auction memory _auction = auctions[auctionId];
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
+        require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
+        require(amount > 0, Errors.ZeroInput());
+        require(
+            amount + bidders[msg.sender][auctionId] > _auction.highestBid,
+            Errors.PriceNotMet(_auction.highestBid, amount)
+        );
+        require(
+            IERC20(_auction.currency).balanceOf(msg.sender) >= amount,
+            Errors.InsufficientFunds(IERC20(_auction.currency).balanceOf(msg.sender))
+        );
+        _;
+    }
+
+    /// @notice Creates an auction
+    /// @param collectionContract address of NFT
+    /// @param tokenId ID of token
+    /// @param duration Deadline for auction - in hours
+    /// @param currency ERC20 token for payment
+    /// @param reservePrice The asking price for NFT
+    function listItem(
+        address collectionContract,
+        uint256 tokenId,
+        uint256 duration,
+        address currency,
+        uint256 reservePrice
+    ) external listItemRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
         Auction memory _auction;
         _auction.auctionId = auctionCount;
-        _auction.collectionContract = _collectionContract;
-        _auction.tokenId = _tokenId;
+        _auction.collectionContract = collectionContract;
+        _auction.tokenId = tokenId;
         _auction.seller = msg.sender;
-        _auction.deadline = block.timestamp + _duration;
-        _auction.currency = _currency;
-        _auction.reservePrice = _reservePrice;
+        _auction.deadline = block.timestamp + (duration * 1 hours);
+        _auction.currency = currency;
+        _auction.reservePrice = reservePrice;
         _auction.status = Status.OPEN;
 
-        listedItems[msg.sender][_collectionContract] = _tokenId;
+        listedItems[msg.sender][collectionContract] = tokenId;
         auctions[auctionCount] = _auction;
         auctionCount++;
 
-        //EVENT
+        emit LogListItem(msg.sender, collectionContract, tokenId, _auction.deadline);
     }
 
-    function bid(uint256 auctionNumber, uint256 amount) external bidRequirements(auctionNumber, amount) {
-        Auction storage auction = auctions[auctionNumber];
-        auction.highestBid = amount;
-        auction.highestBidder = msg.sender;
+    /// @notice Create bid
+    /// @param auctionId Auction ID of auction to bid on
+    /// @param amount Amount to bid
+    function bid(uint256 auctionId, uint256 amount) external bidRequirements(auctionId, amount) {
+        Auction storage _auction = auctions[auctionId];
+        _auction.highestBid = amount;
+        _auction.highestBidder = msg.sender;
+        bidders[msg.sender][auctionId] += amount;
 
-        bidders[msg.sender][auctionNumber].bidAmount += amount;
+        IERC20(_auction.currency).safeTransferFrom(msg.sender, address(this), amount);
 
-        if (!bidders[msg.sender][auctionNumber].participated) {
-            bidders[msg.sender][auctionNumber].participated = true;
-        }
-
-        IERC20(auction.currency).transferFrom(msg.sender, address(this), amount);
-        //EVENT
+        emit LogBid(msg.sender, _auction.highestBid, amount);
     }
 
-    function bidOneTokenUp(uint256 auctionNumber) external {
-        Auction storage auction = auctions[auctionNumber];
-        require(auctionNumber == auction.auctionId, "Auction does not exist");
-        require(block.timestamp <= auction.deadline, "Auction has finished");
+    /// @notice Outbid currect highest bidder with 0.5 token
+    /// @param auctionId Auction ID of auction to bid on
+    function bidHalfTokenUp(uint256 auctionId) external {
+        Auction storage _auction = auctions[auctionId];
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
+        require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
         require(
-            IERC20(auction.currency).balanceOf(msg.sender) + bidders[msg.sender][auctionNumber].bidAmount
-                >= auction.highestBid + HALF_TOKEN,
-            "Not enough funds"
+            IERC20(_auction.currency).balanceOf(msg.sender) + bidders[msg.sender][auctionId]
+                >= _auction.highestBid + HALF_TOKEN,
+            Errors.InsufficientFunds(IERC20(_auction.currency).balanceOf(msg.sender))
         );
 
-        uint256 amountToDeposit = (auction.highestBid + HALF_TOKEN) - bidders[msg.sender][auctionNumber].bidAmount;
-        bidders[msg.sender][auctionNumber].bidAmount += amountToDeposit;
+        uint256 amountToDeposit = (_auction.highestBid + HALF_TOKEN) - bidders[msg.sender][auctionId];
+        bidders[msg.sender][auctionId] += amountToDeposit;
+        _auction.highestBid += HALF_TOKEN;
+        _auction.highestBidder = msg.sender;
 
-        auction.highestBid += HALF_TOKEN;
-        auction.highestBidder = msg.sender;
+        IERC20(_auction.currency).safeTransferFrom(msg.sender, address(this), amountToDeposit);
 
-        if (!bidders[msg.sender][auctionNumber].participated) {
-            bidders[msg.sender][auctionNumber].participated = true;
-        }
-
-        IERC20(auction.currency).transferFrom(msg.sender, address(this), amountToDeposit);
-
-        //EVENT
+        emit LogBidHalfTokenUp(msg.sender, _auction.highestBid, amountToDeposit);
     }
 
-    function sellerWithdraw(uint256 auctionNumber) external {
-        Auction storage auction = auctions[auctionNumber];
-        require(auctionNumber == auction.auctionId, "Auction does not exist");
-        require(auction.seller == msg.sender, "Not owner of auction");
-        require(auction.highestBid >= auction.reservePrice, "Reserve price not met");
-        require(block.timestamp > auction.deadline, "Auction still open");
+    /// @notice Withdraw funds from auction
+    /// @param auctionId Auction ID of closed auction
+    /// @dev can call this function only after auction deadline, also charges fee for owner of smart contract
+    function sellerWithdraw(uint256 auctionId) external {
+        Auction storage _auction = auctions[auctionId];
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
+        require(_auction.seller == msg.sender, Errors.NotOwnerOfAuction());
         require(
-            IERC721(auction.collectionContract).ownerOf(auction.tokenId) == auction.highestBidder,
-            "NFT has not been sent to bidder"
+            _auction.highestBid >= _auction.reservePrice, Errors.PriceNotMet(_auction.reservePrice, _auction.highestBid)
+        );
+        require(block.timestamp > _auction.deadline, Errors.AuctionIsStillOpen(_auction.deadline));
+        require(
+            IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) == _auction.highestBidder,
+            Errors.NftNotSent(auctionId, _auction.highestBidder)
         );
 
-        auction.status = Status.CLOSED;
+        _auction.status = Status.CLOSED;
+        uint256 feeAmount = (_auction.highestBid * FEE) / 10000;
+        ownerAccumulatedFees[_auction.currency] += feeAmount;
 
-        uint256 feeAmount = (auction.highestBid * FEE) / 10000;
+        IERC20(_auction.currency).safeTransfer(msg.sender, _auction.highestBid - feeAmount);
 
-        ownerAccumulatedAmounts[owner][auction.currency] += feeAmount;
-
-        IERC20(auction.currency).transfer(msg.sender, auction.highestBid - feeAmount);
-
-        //EVENT
+        emit LogSellerWithdraw(msg.sender, _auction.highestBid - feeAmount, feeAmount);
     }
 
-    function userWithdraw(uint256 auctionNumber) external {
-        Auction memory auction = auctions[auctionNumber];
-        require(auctionNumber == auction.auctionId, "Auction does not exist");
-        require(auction.highestBidder != msg.sender, "You won auction, cannot withdraw");
-        require(bidders[msg.sender][auctionNumber].bidAmount > 0, "You have not participated in auction");
+    /// @notice Users that did not won in auction can withdraw their funds back
+    /// @param auctionId Auction ID of auction
+    function bidderWithdraw(uint256 auctionId) external {
+        Auction memory _auction = auctions[auctionId];
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
+        require(
+            _auction.highestBidder != msg.sender && _auction.reservePrice < _auction.highestBid,
+            Errors.YouWonAuction(auctionId)
+        );
+        require(bidders[msg.sender][auctionId] > 0, Errors.NotPartOfAuction());
 
-        IERC20(auction.currency).transfer(msg.sender, bidders[msg.sender][auctionNumber].bidAmount);
+        IERC20(_auction.currency).safeTransfer(msg.sender, bidders[msg.sender][auctionId]);
 
-        //EVENT
+        emit LogBidderWithdraw(msg.sender, bidders[msg.sender][auctionId]);
     }
 
-    function blackListSeller(uint256 auctionNumber) external {
-        Auction storage auction = auctions[auctionNumber];
-        require(msg.sender == auction.highestBidder, "Not allowed to black list");
-        require(IERC721(auction.collectionContract).ownerOf(auction.tokenId) != msg.sender, "You are the owner of NFT");
+    /// @notice Blacklists seller
+    /// @param auctionId Auction ID of auction
+    /// @dev blacklists if seller did not send NFT to bidder within 1 day after deadline or NFT changed owners while listed on Auction
+    function blackListSeller(uint256 auctionId) external {
+        Auction storage _auction = auctions[auctionId];
+        require(msg.sender == _auction.highestBidder, Errors.CantBlackList());
+        require(IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) != msg.sender, Errors.YouAreTheOwner());
 
         if (
-            block.timestamp >= auction.deadline + 24 hours
-                || IERC721(auction.collectionContract).ownerOf(auction.tokenId) != auction.seller
+            block.timestamp >= _auction.deadline + 24 hours
+                || IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) != _auction.seller
         ) {
-            blackList[auction.seller] = true;
-            uint256 bidAmount = auction.highestBid;
-            auction.status = Status.CLOSED;
+            blackList[_auction.seller] = true;
+            blacklistedFor[_auction.seller] = auctionId;
+            uint256 bidAmount = bidders[msg.sender][auctionId];
+            _auction.status = Status.CLOSED;
+            IERC20(_auction.currency).safeTransfer(msg.sender, bidAmount);
 
-            IERC20(auction.currency).transfer(msg.sender, bidAmount);
+            emit LogBlackListSeller(msg.sender, _auction.seller, bidAmount);
         }
-
-        //EVENT
     }
 
-    // TOKENSWAP IMPLEMENTATION
+    /// @notice Withdraw fees
+    /// @param currency Currency of fees
+    /// @param amount Amount to withdraw
+    /// @dev Only owner can withdraw
+    function withdrawFees(address currency, uint256 amount) external onlyOwner {
+        require(ownerAccumulatedFees[currency] >= amount, Errors.InsufficientFunds(ownerAccumulatedFees[currency]));
+        ownerAccumulatedFees[currency] -= amount;
+        IERC20(currency).safeTransfer(msg.sender, amount);
 
+        emit LogWithdrawFees(msg.sender, currency, amount);
+    }
+
+    function swapTokens() external {}
+
+    /// @notice Get accumulated fees
+    /// @param currency Currency of fees
+    /// @dev Only owner can call function
+    /// @return fees
+    function getAccumulatedFees(address currency) external view onlyOwner returns (uint256) {
+        return ownerAccumulatedFees[currency];
+    }
+
+    /// @notice Get Auction
+    /// @param auctionId Auction ID of auction
+    /// @return Auction state
+    function getAuction(uint256 auctionId) external view returns (Auction memory) {
+        return auctions[auctionId];
+    }
+
+    /// @notice Get all open Auctions
+    /// @return openAuctions ID of open Auctions
     function getOpenAuctions() external view returns (uint256[] memory openAuctions) {
+        uint256 _counter;
         for (uint256 i; i < auctionCount; ++i) {
             if (auctions[i].status == Status.OPEN) {
-                openAuctions[i] = i;
+                openAuctions[_counter] = i;
+                _counter++;
             }
         }
         return openAuctions;
     }
 
-    function getAllowedCurrencies() external view returns (IERC20[] memory) {
-        IERC20[] memory _currencies;
+    /// @notice Get all currencies available to trade with
+    /// @return addresses of all currencies
+    function getAllowedCurrencies() external view returns (address[] memory) {
+        address[] memory _currencies;
         for (uint256 i; i < allowedCurrencies.length; ++i) {
             _currencies[i] = allowedCurrencies[i];
         }
         return _currencies;
+    }
+
+    /// @notice Get auction where blacklisted
+    /// @return blacklisted boolean
+    /// @return auctionId auction ID
+    function getBlacklistedFor() external view returns (bool blacklisted, uint256 auctionId) {
+        (blacklisted, auctionId) = (blackList[msg.sender], blacklistedFor[msg.sender]);
     }
 }
