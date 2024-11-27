@@ -10,3 +10,6 @@
 [submodule "english-auction/english-auction/lib/forge-std"]
 	path = english-auction/english-auction/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "nft-auction/lib/v3-core"]
+	path = nft-auction/lib/v3-core
+	url = https://github.com/uniswap/v3-core
