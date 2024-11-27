@@ -13,3 +13,6 @@
 [submodule "nft-auction/lib/v3-core"]
 	path = nft-auction/lib/v3-core
 	url = https://github.com/uniswap/v3-core
+[submodule "nft-auction/lib/v3-periphery"]
+	path = nft-auction/lib/v3-periphery
+	url = https://github.com/uniswap/v3-periphery
