@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENCED
 pragma solidity 0.8.28;
 
-import {Errors} from "src/utils/Errors.sol";
+import { Errors } from "src/utils/Errors.sol";
 
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title English Auction for NFTs
 /// @notice This smart contract allows users to sell and bid on NFTs. Owner receives 0.3% for each sold NFT.
@@ -15,7 +15,7 @@ import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 contract NFTAuction {
     using SafeERC20 for IERC20;
 
-    event LogListItem(
+    event LogCreateAuction(
         address indexed seller, address indexed collectionContract, uint256 indexed tokenId, uint256 deadline
     );
     event LogBid(address indexed bidder, uint256 indexed highestBid, uint256 amount);
@@ -70,7 +70,7 @@ contract NFTAuction {
     /// Allowed currencies to trade with
     address[] private allowedCurrencies;
     /// Needed for check if currency is allowed
-    mapping(address => bool) private currencies;
+    mapping(address => bool) public currencies;
     /// Records blacklisted sellers
     mapping(address seller => bool) private blackList;
     /// Auction where seller was blacklisted
@@ -84,13 +84,13 @@ contract NFTAuction {
     /// Records the accumulated fees of owner
     mapping(address tokenAddress => uint256 feeAmount) private ownerAccumulatedFees;
 
-    constructor(address[] memory _allowedCurrencies) {
+    constructor(IERC20[] memory _allowedCurrencies) {
         owner = msg.sender;
 
         // Feed in allowed currencies
         for (uint256 i; i < _allowedCurrencies.length; i++) {
             currencies[address(_allowedCurrencies[i])] = true;
-            allowedCurrencies.push(_allowedCurrencies[i]);
+            allowedCurrencies.push(address(_allowedCurrencies[i]));
         }
     }
 
@@ -99,7 +99,7 @@ contract NFTAuction {
         _;
     }
 
-    modifier listItemRequirements(
+    modifier createAuctionRequirements(
         address collectionContract,
         uint256 tokenId,
         uint256 duration,
@@ -142,13 +142,13 @@ contract NFTAuction {
     /// @param duration Deadline for auction - in hours
     /// @param currency ERC20 token for payment
     /// @param reservePrice The asking price for NFT
-    function listItem(
+    function createAuction(
         address collectionContract,
         uint256 tokenId,
         uint256 duration,
         address currency,
         uint256 reservePrice
-    ) external listItemRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
+    ) external createAuctionRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
         Auction memory _auction;
         _auction.auctionId = auctionCount;
         _auction.collectionContract = collectionContract;
@@ -163,7 +163,7 @@ contract NFTAuction {
         auctions[auctionCount] = _auction;
         auctionCount++;
 
-        emit LogListItem(msg.sender, collectionContract, tokenId, _auction.deadline);
+        emit LogCreateAuction(msg.sender, collectionContract, tokenId, _auction.deadline);
     }
 
     /// @notice Create bid
