@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENCED
 pragma solidity 0.8.28;
 
-import { Errors } from "src/utils/Errors.sol";
+import {Errors} from "src/utils/Errors.sol";
+import {Constants} from "src/utils/Constants.sol";
 
-import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IERC20, SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title English Auction for NFTs
 /// @notice This smart contract allows users to sell and bid on NFTs. Owner receives 0.3% for each sold NFT.
@@ -54,16 +55,12 @@ contract NFTAuction {
         Status status;
     }
 
-    /// the maximum time an item can be listed for
-    uint256 public constant MAX_DURATION = 1 days;
-    /// the minimum time an item can be listed for
-    uint256 public constant MIN_DURATION = 2 hours;
-    /// used in 'bidHalfTokenUp' function, allowing bidder to directly outbid by half token
-    uint256 public constant HALF_TOKEN = 5 * 10 ** 17;
-    /// fee for sold NFT - 0.3%
-    uint256 public constant FEE = 300;
     /// owner of smart contract
     address public immutable owner;
+    /// the maximum time an item can be listed for
+    uint256 public immutable MAX_DURATION;
+    /// the minimum time an item can be listed for
+    uint256 public immutable MIN_DURATION;
 
     /// total auctions count
     uint256 public auctionCount;
@@ -107,8 +104,8 @@ contract NFTAuction {
         uint256 reservePrice
     ) {
         require(
-            duration >= MIN_DURATION && duration <= MAX_DURATION,
-            Errors.AuctionDurationOutOfBounds(MIN_DURATION, MAX_DURATION)
+            duration >= Constants.MIN_DURATION && duration <= Constants.MAX_DURATION,
+            Errors.AuctionDurationOutOfBounds(Constants.MIN_DURATION, Constants.MAX_DURATION)
         );
         require(
             IERC721(collectionContract).ownerOf(tokenId) == msg.sender,
@@ -120,7 +117,7 @@ contract NFTAuction {
         _;
     }
 
-    modifier bidRequirements(uint256 auctionId, uint256 amount) {
+    modifier createBidRequirements(uint256 auctionId, uint256 amount) {
         Auction memory _auction = auctions[auctionId];
         require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
         require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
@@ -150,11 +147,12 @@ contract NFTAuction {
         uint256 reservePrice
     ) external createAuctionRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
         Auction memory _auction;
+        uint256 currentBlockTimestamp = block.timestamp;
         _auction.auctionId = auctionCount;
         _auction.collectionContract = collectionContract;
         _auction.tokenId = tokenId;
         _auction.seller = msg.sender;
-        _auction.deadline = block.timestamp + (duration * 1 hours);
+        _auction.deadline = currentBlockTimestamp + (duration * 1 days);
         _auction.currency = currency;
         _auction.reservePrice = reservePrice;
         _auction.status = Status.OPEN;
@@ -169,7 +167,7 @@ contract NFTAuction {
     /// @notice Create bid
     /// @param auctionId Auction ID of auction to bid on
     /// @param amount Amount to bid
-    function bid(uint256 auctionId, uint256 amount) external bidRequirements(auctionId, amount) {
+    function createBid(uint256 auctionId, uint256 amount) external createBidRequirements(auctionId, amount) {
         Auction storage _auction = auctions[auctionId];
         _auction.highestBid = amount;
         _auction.highestBidder = msg.sender;
@@ -188,13 +186,13 @@ contract NFTAuction {
         require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
         require(
             IERC20(_auction.currency).balanceOf(msg.sender) + bidders[msg.sender][auctionId]
-                >= _auction.highestBid + HALF_TOKEN,
+                >= _auction.highestBid + Constants.HALF_TOKEN,
             Errors.InsufficientFunds(IERC20(_auction.currency).balanceOf(msg.sender))
         );
 
-        uint256 amountToDeposit = (_auction.highestBid + HALF_TOKEN) - bidders[msg.sender][auctionId];
+        uint256 amountToDeposit = (_auction.highestBid + Constants.HALF_TOKEN) - bidders[msg.sender][auctionId];
         bidders[msg.sender][auctionId] += amountToDeposit;
-        _auction.highestBid += HALF_TOKEN;
+        _auction.highestBid += Constants.HALF_TOKEN;
         _auction.highestBidder = msg.sender;
 
         IERC20(_auction.currency).safeTransferFrom(msg.sender, address(this), amountToDeposit);
@@ -219,7 +217,7 @@ contract NFTAuction {
         );
 
         _auction.status = Status.CLOSED;
-        uint256 feeAmount = (_auction.highestBid * FEE) / 10000;
+        uint256 feeAmount = (_auction.highestBid * Constants.FEE) / 10000;
         ownerAccumulatedFees[_auction.currency] += feeAmount;
 
         IERC20(_auction.currency).safeTransfer(msg.sender, _auction.highestBid - feeAmount);
@@ -310,8 +308,8 @@ contract NFTAuction {
     /// @notice Get all currencies available to trade with
     /// @return addresses of all currencies
     function getAllowedCurrencies() external view returns (address[] memory) {
-        address[] memory _currencies;
-        for (uint256 i; i < allowedCurrencies.length; ++i) {
+        address[] memory _currencies = new address[](allowedCurrencies.length);
+        for (uint256 i = 0; i < allowedCurrencies.length; ++i) {
             _currencies[i] = allowedCurrencies[i];
         }
         return _currencies;
