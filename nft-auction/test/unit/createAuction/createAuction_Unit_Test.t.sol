@@ -6,11 +6,16 @@ import {Errors} from "src/utils/Errors.sol";
 import {Constants} from "src/utils/Constants.sol";
 import {NFTAuction} from "src/NFTAuction.sol";
 
+import { console } from "forge-std/console.sol";
+
 contract CreateAuction_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
+
         vm.startPrank(sellerOne);
     }
+
+    enum Status { CLOSED, OPEN}
 
     function testFuzz_Given_RevertTheDurationIsLessThanMinDuration(uint256 duration) external {
         vm.assume(duration < Constants.MIN_DURATION);
@@ -75,5 +80,15 @@ contract CreateAuction_Unit_Test is Base_Test {
         emit NFTAuction.LogCreateAuction(address(sellerOne), address(nftContract), 1, block.timestamp + 4 days);
         // it should create auction
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
+        NFTAuction.Auction memory auction = nftAuction.getAuction(1);
+        
+        assertEq(auction.auctionId, 1);
+        assertEq(auction.collectionContract, address(nftContract));
+        assertEq(auction.tokenId, tokenOne);
+        assertEq(auction.seller, sellerOne);
+        assertEq(auction.deadline, block.timestamp + (durationDays * 1 days));
+        assertEq(auction.currency, address(daiContract));
+        assertEq(auction.reservePrice, reservePrice);
+        assertEq(uint8(NFTAuction.Status.OPEN), 0);
     }
 }
