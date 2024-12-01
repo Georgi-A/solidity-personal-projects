@@ -1,6 +1,11 @@
 [profile.default]
 src = "src"
+block_timestamp = 1_680_220_800
 out = "out"
+fuzz = { runs = 256 }
+gas_reports = ["*"]
 libs = ["lib"]
+optimizer = true
+optimizer_runs = 256
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

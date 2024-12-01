@@ -1,0 +1,15 @@
+CreateAuction_Unit_Test
+    ├── given the duration is less than min duration
+    │   └── it should revert
+    ├── given the duration is higher than max duration
+    │   └── it should revert
+    ├── given the seller is not owner of tokenID
+    │   └── it should revert
+    ├── given the token is already listed
+    │   └── it should revert
+    ├── given reserve price is zero
+    │   └── it should revert
+    ├── given currency is not allowed
+    │   └── it should revert
+    └── given all parameters are valid
+        ├── it should create auction
