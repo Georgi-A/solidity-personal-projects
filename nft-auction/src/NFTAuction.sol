@@ -19,7 +19,7 @@ contract NFTAuction {
     event LogCreateAuction(
         address indexed seller, address indexed collectionContract, uint256 indexed tokenId, uint256 deadline
     );
-    event LogBid(address indexed bidder, uint256 indexed highestBid, uint256 amount);
+    event LogCreateBid(address indexed bidder, uint256 indexed auctionId, uint256 amount);
     event LogBidHalfTokenUp(address indexed bidder, uint256 indexed highestBid, uint256 amount);
     event LogSellerWithdraw(address indexed seller, uint256 amount, uint256 feeAmount);
     event LogBidderWithdraw(address indexed bidder, uint256 refund);
@@ -120,16 +120,16 @@ contract NFTAuction {
     modifier createBidRequirements(uint256 auctionId, uint256 amount) {
         Auction memory _auction = auctions[auctionId];
         require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
-        require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
         require(amount > 0, Errors.ZeroInput());
         require(
-            amount + bidders[msg.sender][auctionId] > _auction.highestBid,
+            amount > _auction.highestBid,
             Errors.PriceNotMet(_auction.highestBid, amount)
         );
         require(
             IERC20(_auction.currency).balanceOf(msg.sender) >= amount,
             Errors.InsufficientFunds(IERC20(_auction.currency).balanceOf(msg.sender))
         );
+        require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
         _;
     }
 
@@ -148,7 +148,7 @@ contract NFTAuction {
     ) external createAuctionRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
         Auction memory _auction;
         uint256 currentBlockTimestamp = block.timestamp;
-        _auction.auctionId = auctionCount;
+        _auction.auctionId = ++auctionCount;
         _auction.collectionContract = collectionContract;
         _auction.tokenId = tokenId;
         _auction.seller = msg.sender;
@@ -159,7 +159,6 @@ contract NFTAuction {
 
         listedItems[msg.sender][collectionContract] = tokenId;
         auctions[auctionCount] = _auction;
-        auctionCount++;
 
         emit LogCreateAuction(msg.sender, collectionContract, tokenId, _auction.deadline);
     }
@@ -175,7 +174,7 @@ contract NFTAuction {
 
         IERC20(_auction.currency).safeTransferFrom(msg.sender, address(this), amount);
 
-        emit LogBid(msg.sender, _auction.highestBid, amount);
+        emit LogCreateBid(msg.sender, auctionId, amount);
     }
 
     /// @notice Outbid currect highest bidder with 0.5 token
