@@ -52,6 +52,7 @@ contract NFTAuction {
         uint256 reservePrice;
         uint256 highestBid;
         address highestBidder;
+        bool sold;
         Status status;
     }
 
@@ -66,7 +67,7 @@ contract NFTAuction {
     uint256 public auctionCount;
     /// Allowed currencies to trade with
     address[] private allowedCurrencies;
-    /// Needed for check if currency is allowed
+    /// Allowed currencies check
     mapping(address => bool) public currencies;
     /// Records blacklisted sellers
     mapping(address seller => bool) private blackList;
@@ -77,7 +78,7 @@ contract NFTAuction {
     /// Records bidder current bid amounts
     mapping(address bidder => mapping(uint256 auctionId => uint256 amount)) private bidders;
     /// Records seller listed items
-    mapping(address seller => mapping(address addressItem => uint256 tokenId)) private listedItems;
+    mapping(uint256 tokenId => mapping(address contractAddress => address seller)) private listedItem;
     /// Records the accumulated fees of owner
     mapping(address tokenAddress => uint256 feeAmount) private ownerAccumulatedFees;
 
@@ -111,9 +112,10 @@ contract NFTAuction {
             IERC721(collectionContract).ownerOf(tokenId) == msg.sender,
             Errors.NotOwnerOfToken(IERC721(collectionContract).ownerOf(tokenId))
         );
-        require(listedItems[msg.sender][collectionContract] == 0, Errors.ItemAlreadyListed());
+        require(listedItem[tokenId][collectionContract] != msg.sender, Errors.ItemAlreadyListed());
         require(reservePrice > 0, Errors.ZeroInput());
         require(currencies[currency], Errors.CurrencyNotAllowed());
+        require(!blackList[msg.sender], Errors.BlackListed(blacklistedFor[msg.sender]));
         _;
     }
 
@@ -157,7 +159,7 @@ contract NFTAuction {
         _auction.reservePrice = reservePrice;
         _auction.status = Status.OPEN;
 
-        listedItems[msg.sender][collectionContract] = tokenId;
+        listedItem[tokenId][collectionContract] = msg.sender;
         auctions[auctionCount] = _auction;
 
         emit LogCreateAuction(msg.sender, collectionContract, tokenId, _auction.deadline);
@@ -245,11 +247,11 @@ contract NFTAuction {
     /// @dev blacklists if seller did not send NFT to bidder within 1 day after deadline or NFT changed owners while listed on Auction
     function blackListSeller(uint256 auctionId) external {
         Auction storage _auction = auctions[auctionId];
-        require(msg.sender == _auction.highestBidder, Errors.CantBlackList());
+        require(msg.sender == _auction.highestBidder && _auction.reservePrice <= _auction.highestBid, Errors.CantBlackList());
         require(IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) != msg.sender, Errors.YouAreTheOwner());
 
         if (
-            block.timestamp >= _auction.deadline + 24 hours
+            block.timestamp > _auction.deadline + 1 days
                 || IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) != _auction.seller
         ) {
             blackList[_auction.seller] = true;

@@ -36,4 +36,6 @@ library Errors {
     error YouAreTheOwner();
     /// @notice Thrown when currency is not allowed
     error CurrencyNotAllowed();
+    /// @notice Thrown when seller has been blacklisted
+    error BlackListed(uint256 forAuctionId);
 }
