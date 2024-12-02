@@ -3,16 +3,12 @@ pragma solidity 0.8.28;
 
 import {Base_Test} from "test/Base.t.sol";
 import {Errors} from "src/utils/Errors.sol";
-import {Constants} from "src/utils/Constants.sol";
 import {NFTAuction} from "src/NFTAuction.sol";
-
-import { console } from "forge-std/console.sol";
 
 contract CreateBid_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
         createAuction(tokenOne, durationDays);
-
         vm.startPrank(bidderOne);
     }
 

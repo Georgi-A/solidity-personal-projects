@@ -6,16 +6,12 @@ import {Errors} from "src/utils/Errors.sol";
 import {Constants} from "src/utils/Constants.sol";
 import {NFTAuction} from "src/NFTAuction.sol";
 
-import { console } from "forge-std/console.sol";
-
 contract CreateAuction_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
 
         vm.startPrank(sellerOne);
     }
-
-    enum Status { CLOSED, OPEN}
 
     function testFuzz_Given_RevertTheDurationIsLessThanMinDuration(uint256 duration) external {
         vm.assume(duration < Constants.MIN_DURATION);
@@ -73,6 +69,22 @@ contract CreateAuction_Unit_Test is Base_Test {
         // it should revert
         vm.expectRevert({revertData: abi.encodeWithSelector(Errors.CurrencyNotAllowed.selector)});
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, currency, reservePrice);
+    }
+
+    function testFuzz_RevertWhen_SellerHasBeenBlacklisted(uint256 duration) external {
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), 200);
+        
+        vm.startPrank(bidderOne);
+        nftAuction.createBid(1, 250);
+        uint256 sendNftDeadline = block.timestamp + (durationDays + 1 days);
+        vm.assume(duration > sendNftDeadline);
+        vm.warp(duration);
+        nftAuction.blackListSeller(1);
+        
+        // it should revert
+        vm.startPrank(sellerOne);
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.BlackListed.selector, 1)});
+        nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), 200);
     }
 
     function test_GivenAllParametersAreValid() external {

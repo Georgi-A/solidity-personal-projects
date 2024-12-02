@@ -14,6 +14,7 @@ abstract contract Base_Test is Test {
     uint256 reservePrice = 2000;
     uint256 durationDays = 4;
     uint256 tokenOne = 1;
+    uint256 amountToDeposit = 1000;
 
     //// TOKENS ////
     MockERC20 wethContract;
@@ -41,31 +42,27 @@ abstract contract Base_Test is Test {
         nftAuction = new NFTAuction(supportedTokens);
         vm.stopPrank();
 
-        //// SET BIDDERS WITH FUNDS ////
+        //// SET BIDDERS WITH FUNDS AND APPROVE////
         vm.startPrank(bidderOne);
-        daiContract.mint(bidderOne, 1000);
-        IERC20(daiContract).approve(address(nftAuction), address(bidderOne).balance);
+        daiContract.mint(bidderOne, amountToDeposit);
+        daiContract.approve(address(nftAuction), amountToDeposit);
         vm.stopPrank();
 
         vm.startPrank(bidderTwo);
-        wethContract.mint(bidderTwo, 100);
-        IERC20(wethContract).approve(address(nftAuction), address(bidderTwo).balance);
+        wethContract.mint(bidderTwo, amountToDeposit);
+        wethContract.approve(address(nftAuction), amountToDeposit);
         vm.stopPrank();
 
-        //// SET SELLERS WITH NFTs ////
+        //// SET SELLER WITH NFT ////
         vm.startPrank(sellerOne);
-        nftContract.mint(sellerOne, 1);
+        nftContract.mint(sellerOne, tokenOne);
         nftContract.mint(sellerOne, 2);
-        vm.stopPrank();
-
-        vm.startPrank(sellerTwo);
-        nftContract.mint(sellerTwo, 3);
         vm.stopPrank();
     }
 
-    function createAuction() external {
+    function createAuction(uint256 tokenId, uint256 duration) internal {
         vm.startPrank(sellerOne);
-        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
+        nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);
         vm.stopPrank();
     }
 }

@@ -11,5 +11,7 @@ CreateAuction_Unit_Test
     │   └── it should revert
     ├── given currency is not allowed
     │   └── it should revert
+    ├── when seller has been blacklisted
+    │   └── it should revert
     └── given all parameters are valid
         ├── it should create auction
