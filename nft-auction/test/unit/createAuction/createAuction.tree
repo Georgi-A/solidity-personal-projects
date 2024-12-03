@@ -5,7 +5,7 @@ CreateAuction_Unit_Test
     │   └── it should revert
     ├── given the seller is not owner of tokenID
     │   └── it should revert
-    ├── given the token is already listed
+    ├── when the token is already listed
     │   └── it should revert
     ├── given reserve price is zero
     │   └── it should revert
@@ -13,5 +13,7 @@ CreateAuction_Unit_Test
     │   └── it should revert
     ├── when seller has been blacklisted
     │   └── it should revert
+    ├── when token is sold and listed again
+    │   └── it should create auction
     └── given all parameters are valid
-        ├── it should create auction
+        └── it should create auction

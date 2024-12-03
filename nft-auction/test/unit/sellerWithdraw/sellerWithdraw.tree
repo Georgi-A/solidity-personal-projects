@@ -1,0 +1,14 @@
+sellerWithdraw_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    └── given auction does exist
+        ├── when seller is not owner of auction
+        │   └── it should revert
+        ├── when reserve price is not met
+        │   └── it should revert
+        ├── when auction is still open
+        │   └── it should revert
+        ├── when nft is not yet sent to auction winner
+        │   └── it should revert
+        └── when auction winner has received nft
+            └── it should withdraw

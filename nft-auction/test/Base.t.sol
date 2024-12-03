@@ -11,7 +11,7 @@ abstract contract Base_Test is Test {
     NFTAuction nftAuction;
 
     //// CONSTANTS ////
-    uint256 reservePrice = 2000;
+    uint256 reservePrice = 200;
     uint256 durationDays = 4;
     uint256 tokenOne = 1;
     uint256 amountToDeposit = 1000;
@@ -49,8 +49,8 @@ abstract contract Base_Test is Test {
         vm.stopPrank();
 
         vm.startPrank(bidderTwo);
-        wethContract.mint(bidderTwo, amountToDeposit);
-        wethContract.approve(address(nftAuction), amountToDeposit);
+        daiContract.mint(bidderTwo, amountToDeposit * 2);
+        daiContract.approve(address(nftAuction), amountToDeposit * 2);
         vm.stopPrank();
 
         //// SET SELLER WITH NFT ////
@@ -60,9 +60,18 @@ abstract contract Base_Test is Test {
         vm.stopPrank();
     }
 
+    //// HELPERS ////
     function createAuction(uint256 tokenId, uint256 duration) internal {
         vm.startPrank(sellerOne);
         nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);
         vm.stopPrank();
+    }
+
+    function wonFinishedAuction() internal {
+        createAuction(tokenOne, durationDays);
+        vm.startPrank(bidderOne);
+        nftAuction.createBid(1, amountToDeposit);
+        vm.stopPrank();
+        vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
     }
 }

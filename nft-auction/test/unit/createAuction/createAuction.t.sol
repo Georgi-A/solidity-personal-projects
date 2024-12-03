@@ -49,7 +49,7 @@ contract CreateAuction_Unit_Test is Base_Test {
         nftAuction.createAuction(address(nftContract), tokenId, durationDays, address(daiContract), reservePrice);
     }
 
-    function testFuzz_Given_RevertTheTokenIsAlreadyListed(uint256 tokenId) external {
+    function testFuzz_When_RevertTheTokenIsAlreadyListed(uint256 tokenId) external {
         vm.assume(tokenId > 3);
         nftContract.mint(sellerOne, tokenId);
         nftAuction.createAuction(address(nftContract), tokenId, durationDays, address(daiContract), reservePrice);
@@ -85,6 +85,26 @@ contract CreateAuction_Unit_Test is Base_Test {
         vm.startPrank(sellerOne);
         vm.expectRevert({revertData: abi.encodeWithSelector(Errors.BlackListed.selector, 1)});
         nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), 200);
+    }
+
+    function test_WhenTokenIsSoldAndListedAgain() external {
+        vm.expectEmit();
+        emit NFTAuction.LogCreateAuction(address(sellerOne), address(nftContract), tokenOne, block.timestamp + 4 days);
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), 200);
+
+        vm.startPrank(bidderOne);
+        nftAuction.createBid(1, 250);
+        
+        vm.warp(block.timestamp + 4 days + 1 minutes);
+
+        vm.startPrank(sellerOne);
+        nftContract.safeTransfer(bidderOne, tokenOne);
+
+        // it should create auction
+        vm.startPrank(bidderOne);
+        vm.expectEmit();
+        emit NFTAuction.LogCreateAuction(address(bidderOne), address(nftContract), tokenOne, block.timestamp + 4 days);
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(wethContract), 200);
     }
 
     function test_GivenAllParametersAreValid() external {
