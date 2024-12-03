@@ -38,4 +38,6 @@ library Errors {
     error CurrencyNotAllowed();
     /// @notice Thrown when seller has been blacklisted
     error BlackListed(uint256 forAuctionId);
+
+    error WonAuction(uint256 auctionId, address highestBidder, uint256 highestBid, uint256 reservePrice);
 }
