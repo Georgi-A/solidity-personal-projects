@@ -1,0 +1,10 @@
+BidOneTokenUp_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    └── given auction does exist
+        ├── when auction has finished
+        │   └── it should revert
+        ├── when user has insufficient funds
+        │   └── it should revert
+        └── when bidder is able to outbid
+            └── it should outbit by 1 token

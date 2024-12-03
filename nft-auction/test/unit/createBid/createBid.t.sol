@@ -23,7 +23,7 @@ contract CreateBid_Unit_Test is Base_Test {
         nftAuction.createBid(auctionId, 100);
     }
 
-    function test_RevertGiven_AuctionHasFinished(uint256 duration) external {
+    function test_RevertWhen_AuctionHasFinished(uint256 duration) external {
         uint256 deadline = block.timestamp + 4 days;
         vm.assume(duration > deadline);
         vm.warp(duration);
@@ -63,7 +63,7 @@ contract CreateBid_Unit_Test is Base_Test {
         nftAuction.createBid(1, amount);
     }
 
-    function test_RevertGiven_UserHasInsufficientFunds() external {
+    function test_RevertWhen_UserHasInsufficientFunds() external {
         // it should revert
         vm.expectRevert({
             revertData: abi.encodeWithSelector(

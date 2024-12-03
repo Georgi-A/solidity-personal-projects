@@ -20,7 +20,7 @@ contract NFTAuction {
         address indexed seller, address indexed collectionContract, uint256 indexed tokenId, uint256 deadline
     );
     event LogCreateBid(address indexed bidder, uint256 indexed auctionId, uint256 amount);
-    event LogBidHalfTokenUp(address indexed bidder, uint256 indexed highestBid, uint256 amount);
+    event LogBidOneTokenUp(address indexed bidder, uint256 indexed auctionId, uint256 amount);
     event LogSellerWithdraw(address indexed seller, uint256 amount, uint256 feeAmount);
     event LogBidderWithdraw(address indexed bidder, uint256 refund);
     event LogBlackListSeller(address indexed bidder, address indexed seller, uint256 refund);
@@ -149,12 +149,11 @@ contract NFTAuction {
         uint256 reservePrice
     ) external createAuctionRequirements(collectionContract, tokenId, duration, currency, reservePrice) {
         Auction memory _auction;
-        uint256 currentBlockTimestamp = block.timestamp;
         _auction.auctionId = ++auctionCount;
         _auction.collectionContract = collectionContract;
         _auction.tokenId = tokenId;
         _auction.seller = msg.sender;
-        _auction.deadline = currentBlockTimestamp + (duration * 1 days);
+        _auction.deadline = block.timestamp + (duration * 1 days);
         _auction.currency = currency;
         _auction.reservePrice = reservePrice;
         _auction.status = Status.OPEN;
@@ -179,31 +178,31 @@ contract NFTAuction {
         emit LogCreateBid(msg.sender, auctionId, amount);
     }
 
-    /// @notice Outbid currect highest bidder with 0.5 token
+    /// @notice Outbid currect highest bidder with 1 token
     /// @param auctionId Auction ID of auction to bid on
-    function bidHalfTokenUp(uint256 auctionId) external {
+    function bidOneTokenUp(uint256 auctionId) external {
         Auction storage _auction = auctions[auctionId];
         require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
         require(block.timestamp <= _auction.deadline, Errors.AuctionFinished(_auction.deadline));
         require(
             IERC20(_auction.currency).balanceOf(msg.sender) + bidders[msg.sender][auctionId]
-                >= _auction.highestBid + Constants.HALF_TOKEN,
+                >= _auction.highestBid + Constants.ONE_TOKEN,
             Errors.InsufficientFunds(IERC20(_auction.currency).balanceOf(msg.sender))
         );
 
-        uint256 amountToDeposit = (_auction.highestBid + Constants.HALF_TOKEN) - bidders[msg.sender][auctionId];
+        uint256 amountToDeposit = (_auction.highestBid + Constants.ONE_TOKEN) - bidders[msg.sender][auctionId];
         bidders[msg.sender][auctionId] += amountToDeposit;
-        _auction.highestBid += Constants.HALF_TOKEN;
+        _auction.highestBid += Constants.ONE_TOKEN;
         _auction.highestBidder = msg.sender;
 
         IERC20(_auction.currency).safeTransferFrom(msg.sender, address(this), amountToDeposit);
 
-        emit LogBidHalfTokenUp(msg.sender, _auction.highestBid, amountToDeposit);
+        emit LogBidOneTokenUp(msg.sender, _auction.auctionId, amountToDeposit);
     }
 
     /// @notice Withdraw funds from auction
     /// @param auctionId Auction ID of closed auction
-    /// @dev can call this function only after auction deadline, also charges fee for owner of smart contract
+    /// @dev seller can withdraw only after auction deadline and nft has been sent to bidder, also charges fee for owner of smart contract
     function sellerWithdraw(uint256 auctionId) external {
         Auction storage _auction = auctions[auctionId];
         require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
@@ -224,6 +223,22 @@ contract NFTAuction {
         IERC20(_auction.currency).safeTransfer(msg.sender, _auction.highestBid - feeAmount);
 
         emit LogSellerWithdraw(msg.sender, _auction.highestBid - feeAmount, feeAmount);
+    }
+
+    function relistItem(uint256 auctionId, uint256 duration, uint256 reservePrice) external {
+        Auction storage _auction = auctions[auctionId];
+        require(_auction.seller == msg.sender, Errors.NotOwnerOfAuction());
+        require(
+            _auction.highestBid <= _auction.reservePrice && block.timestamp > _auction.deadline, Errors.WonAuction(_auction.auctionId, _auction.highestBidder, _auction.highestBid, _auction.reservePrice)
+        );
+        require(
+            duration >= Constants.MIN_DURATION && duration <= Constants.MAX_DURATION,
+            Errors.AuctionDurationOutOfBounds(Constants.MIN_DURATION, Constants.MAX_DURATION)
+        );  
+
+        _auction.status = Status.OPEN;
+        _auction.deadline = block.timestamp + (duration * 1 days);
+        _auction.reservePrice = reservePrice;
     }
 
     /// @notice Users that did not won in auction can withdraw their funds back

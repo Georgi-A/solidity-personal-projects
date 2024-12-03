@@ -11,4 +11,8 @@ contract MockERC721 is ERC721 {
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
+
+    function safeTransfer(address to, uint256 tokenId) external {
+        _safeTransfer(msg.sender, to, tokenId);
+    }
 }
