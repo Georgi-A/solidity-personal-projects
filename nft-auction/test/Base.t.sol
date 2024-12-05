@@ -11,10 +11,10 @@ abstract contract Base_Test is Test {
     NFTAuction nftAuction;
 
     //// CONSTANTS ////
-    uint256 reservePrice = 200;
+    uint256 reservePrice = 200 * 10 ** 18;
     uint256 durationDays = 4;
     uint256 tokenOne = 1;
-    uint256 amountToDeposit = 1000;
+    uint256 amountToDeposit = 1000 * 10 ** 18;
 
     //// TOKENS ////
     MockERC20 wethContract;
@@ -62,16 +62,19 @@ abstract contract Base_Test is Test {
 
     //// HELPERS ////
     function createAuction(uint256 tokenId, uint256 duration) internal {
-        vm.startPrank(sellerOne);
-        nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);
-        vm.stopPrank();
+        nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);  
     }
 
     function wonFinishedAuction() internal {
         createAuction(tokenOne, durationDays);
+        vm.stopPrank();
         vm.startPrank(bidderOne);
         nftAuction.createBid(1, amountToDeposit);
         vm.stopPrank();
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
+    }
+
+    function toDecimals(uint256 amount) internal pure returns (uint256) {
+        return amount * 10 ** 18;
     }
 }
