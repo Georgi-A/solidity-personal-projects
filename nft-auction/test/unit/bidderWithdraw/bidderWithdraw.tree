@@ -1,0 +1,10 @@
+bidderWithdraw_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    └── given auction does exist
+        ├── when bidder is not part of auction
+        │   └── it should revert
+        ├── when bidder has won the auction
+        │   └── it should revert
+        └── when bidder has not won auction
+            └── it should allow withdraw

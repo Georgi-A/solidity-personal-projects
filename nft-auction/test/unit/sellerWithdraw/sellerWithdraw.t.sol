@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {Base_Test} from "test/Base.t.sol";
-import {Errors} from "src/utils/Errors.sol";
-import {NFTAuction} from "src/NFTAuction.sol";
+import { Base_Test } from "test/Base.t.sol";
+import { Errors } from "src/utils/Errors.sol";
+import { NFTAuction } from "src/NFTAuction.sol";
+import { Constants } from "src/utils/Constants.sol";
 
 contract sellerWithdraw_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
+        vm.startPrank(sellerOne);
         wonFinishedAuction();
         vm.startPrank(sellerOne);
     }
@@ -84,6 +86,16 @@ contract sellerWithdraw_Unit_Test is Base_Test {
     }
 
     function test_WhenAuctionWinnerHasReceivedNft() external givenAuctionDoesExist {
-        
+        nftContract.safeTransfer(bidderOne, tokenOne);
+        uint256 feeAmount = amountToDeposit * Constants.FEE / 10000;
+        uint256 expectedAmount = amountToDeposit - feeAmount;
+
+        // it should deduct fee and withdraw
+        vm.expectEmit();
+        emit NFTAuction.LogSellerWithdraw(sellerOne, expectedAmount, feeAmount);
+        nftAuction.sellerWithdraw(1);
+
+        NFTAuction.Auction memory auction = nftAuction.getAuction(1);
+        assertEq(uint8(auction.status), 1);
     }
 }

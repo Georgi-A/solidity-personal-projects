@@ -1,0 +1,17 @@
+reListItem_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    └── given auction does exist
+        ├── given duration is less than allowed duration
+        │   └── it should revert
+        ├── given duration is higher than allowed duration
+        │   └── it should revert
+        └── given duration is within allowed duration
+            ├── when user is not owner of auction
+            │   └── it should revert
+            ├── when auction has been won
+            │   └── it should revert
+            ├── when auction is still open
+            │   └── it should revert
+            └── given seller meets all conditions for relisting
+                └── it should relist the item successfully

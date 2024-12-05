@@ -72,11 +72,11 @@ contract CreateAuction_Unit_Test is Base_Test {
     }
 
     function testFuzz_RevertWhen_SellerHasBeenBlacklisted(uint256 duration) external {
-        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), 200);
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
         
         vm.startPrank(bidderOne);
-        nftAuction.createBid(1, 250);
-        uint256 sendNftDeadline = block.timestamp + (durationDays + 1 days);
+        nftAuction.createBid(1, toDecimals(250));
+        uint256 sendNftDeadline = block.timestamp + (5 days);
         vm.assume(duration > sendNftDeadline);
         vm.warp(duration);
         nftAuction.blackListSeller(1);
@@ -84,16 +84,16 @@ contract CreateAuction_Unit_Test is Base_Test {
         // it should revert
         vm.startPrank(sellerOne);
         vm.expectRevert({revertData: abi.encodeWithSelector(Errors.BlackListed.selector, 1)});
-        nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), 200);
+        nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), reservePrice);
     }
 
     function test_WhenTokenIsSoldAndListedAgain() external {
         vm.expectEmit();
         emit NFTAuction.LogCreateAuction(address(sellerOne), address(nftContract), tokenOne, block.timestamp + 4 days);
-        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), 200);
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
 
         vm.startPrank(bidderOne);
-        nftAuction.createBid(1, 250);
+        nftAuction.createBid(1, toDecimals(250));
         
         vm.warp(block.timestamp + 4 days + 1 minutes);
 
@@ -104,13 +104,13 @@ contract CreateAuction_Unit_Test is Base_Test {
         vm.startPrank(bidderOne);
         vm.expectEmit();
         emit NFTAuction.LogCreateAuction(address(bidderOne), address(nftContract), tokenOne, block.timestamp + 4 days);
-        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(wethContract), 200);
+        nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(wethContract), reservePrice);
     }
 
     function test_GivenAllParametersAreValid() external {
+        // it should create auction
         vm.expectEmit();
         emit NFTAuction.LogCreateAuction(address(sellerOne), address(nftContract), 1, block.timestamp + 4 days);
-        // it should create auction
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
         NFTAuction.Auction memory auction = nftAuction.getAuction(1);
         

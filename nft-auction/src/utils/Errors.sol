@@ -27,7 +27,7 @@ library Errors {
     /// @notice Thrown when NFT not sent to bidder
     error NftNotSent(uint256 auctionId, address bidder);
     /// @notice Thrown when bidder has won auction but tries to withdraw funds
-    error YouWonAuction(uint256 auctionId);
+    error YouAreTheWinner(uint256 auctionId);
     /// @notice Thrown when bidder has not participated to auction
     error NotPartOfAuction();
     /// @notice Thrown when bidder tries to blacklist seller

@@ -8,7 +8,9 @@ import {NFTAuction} from "src/NFTAuction.sol";
 contract CreateBid_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
+        vm.startPrank(sellerOne);
         createAuction(tokenOne, durationDays);
+        vm.stopPrank();
         vm.startPrank(bidderOne);
     }
 
@@ -20,7 +22,7 @@ contract CreateBid_Unit_Test is Base_Test {
                 Errors.AuctionDoesNotExist.selector
             )
         });
-        nftAuction.createBid(auctionId, 100);
+        nftAuction.createBid(auctionId, toDecimals(100));
     }
 
     function test_RevertWhen_AuctionHasFinished(uint256 duration) external {
@@ -34,7 +36,7 @@ contract CreateBid_Unit_Test is Base_Test {
                 deadline
             )
         });
-        nftAuction.createBid(1, 100);
+        nftAuction.createBid(1, toDecimals(100));
     }
 
     function test_RevertGiven_ZeroAmount() external {
@@ -48,15 +50,15 @@ contract CreateBid_Unit_Test is Base_Test {
     }
 
     function test_RevertGiven_AmountLessThanHigherBid(uint256 amount) external {
-        nftAuction.createBid(1, 500);
+        nftAuction.createBid(1, toDecimals(500));
 
         vm.startPrank(bidderTwo);
         
-        amount = bound({ x: amount, min: 1, max: 499});
+        amount = bound({ x: amount, min: toDecimals(1), max: toDecimals(499)});
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.PriceNotMet.selector,
-                500, amount
+                toDecimals(500), amount
             )
         });
         // it should revert
@@ -76,13 +78,13 @@ contract CreateBid_Unit_Test is Base_Test {
 
     function test_GivenAllParametersAreValid() external {
         vm.expectEmit();
-        emit NFTAuction.LogCreateBid(address(bidderOne), 1, 250);
+        emit NFTAuction.LogCreateBid(address(bidderOne), 1, toDecimals(250));
         
         // it should created a bid
-        nftAuction.createBid(1, 250);
+        nftAuction.createBid(1, toDecimals(250));
 
         NFTAuction.Auction memory auction = nftAuction.getAuction(1);
-        assertEq(auction.highestBid, 250);
+        assertEq(auction.highestBid, toDecimals(250));
         assertEq(auction.highestBidder, bidderOne);
     }
 }

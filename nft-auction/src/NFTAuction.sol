@@ -25,6 +25,7 @@ contract NFTAuction {
     event LogBidderWithdraw(address indexed bidder, uint256 refund);
     event LogBlackListSeller(address indexed bidder, address indexed seller, uint256 refund);
     event LogWithdrawFees(address indexed owner, address indexed currency, uint256 amount);
+    event LogRelistItem(uint256 auctionId, uint256 deadline, uint256 reservePrice);
 
     /// @notice Status of auction
     enum Status {
@@ -225,20 +226,24 @@ contract NFTAuction {
         emit LogSellerWithdraw(msg.sender, _auction.highestBid - feeAmount, feeAmount);
     }
 
-    function relistItem(uint256 auctionId, uint256 duration, uint256 reservePrice) external {
+    function reListItem(uint256 auctionId, uint256 duration, uint256 reservePrice) external {
         Auction storage _auction = auctions[auctionId];
-        require(_auction.seller == msg.sender, Errors.NotOwnerOfAuction());
-        require(
-            _auction.highestBid <= _auction.reservePrice && block.timestamp > _auction.deadline, Errors.WonAuction(_auction.auctionId, _auction.highestBidder, _auction.highestBid, _auction.reservePrice)
-        );
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
         require(
             duration >= Constants.MIN_DURATION && duration <= Constants.MAX_DURATION,
             Errors.AuctionDurationOutOfBounds(Constants.MIN_DURATION, Constants.MAX_DURATION)
         );  
-
+        require(_auction.seller == msg.sender, Errors.NotOwnerOfAuction());
+        require(
+            _auction.highestBid <= _auction.reservePrice, Errors.WonAuction(_auction.auctionId, _auction.highestBidder, _auction.highestBid, _auction.reservePrice)
+        );
+        require(block.timestamp > _auction.deadline, Errors.AuctionIsStillOpen(_auction.deadline));
+      
         _auction.status = Status.OPEN;
         _auction.deadline = block.timestamp + (duration * 1 days);
         _auction.reservePrice = reservePrice;
+
+        emit LogRelistItem(_auction.auctionId, _auction.deadline, reservePrice);
     }
 
     /// @notice Users that did not won in auction can withdraw their funds back
@@ -246,12 +251,11 @@ contract NFTAuction {
     function bidderWithdraw(uint256 auctionId) external {
         Auction memory _auction = auctions[auctionId];
         require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
+        require(bidders[msg.sender][auctionId] > 0, Errors.NotPartOfAuction());
         require(
             _auction.highestBidder != msg.sender && _auction.reservePrice < _auction.highestBid,
-            Errors.YouWonAuction(auctionId)
+            Errors.YouAreTheWinner(auctionId)
         );
-        require(bidders[msg.sender][auctionId] > 0, Errors.NotPartOfAuction());
-
         IERC20(_auction.currency).safeTransfer(msg.sender, bidders[msg.sender][auctionId]);
 
         emit LogBidderWithdraw(msg.sender, bidders[msg.sender][auctionId]);
@@ -262,6 +266,7 @@ contract NFTAuction {
     /// @dev blacklists if seller did not send NFT to bidder within 1 day after deadline or NFT changed owners while listed on Auction
     function blackListSeller(uint256 auctionId) external {
         Auction storage _auction = auctions[auctionId];
+        require(auctionId == _auction.auctionId, Errors.AuctionDoesNotExist());
         require(msg.sender == _auction.highestBidder && _auction.reservePrice <= _auction.highestBid, Errors.CantBlackList());
         require(IERC721(_auction.collectionContract).ownerOf(_auction.tokenId) != msg.sender, Errors.YouAreTheOwner());
 
