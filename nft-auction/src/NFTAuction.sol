@@ -66,9 +66,9 @@ contract NFTAuction {
 
     /// total auctions count
     uint256 public auctionCount;
-    /// Allowed currencies to trade with
-    address[] private allowedCurrencies;
-    /// Allowed currencies check
+    /// Supported currencies to trade with
+    address[] private supportedCurrencies;
+    /// Supported currencies check
     mapping(address => bool) public currencies;
     /// Records blacklisted sellers
     mapping(address seller => bool) private blackList;
@@ -83,13 +83,13 @@ contract NFTAuction {
     /// Records the accumulated fees of owner
     mapping(address tokenAddress => uint256 feeAmount) private ownerAccumulatedFees;
 
-    constructor(IERC20[] memory _allowedCurrencies) {
+    constructor(IERC20[] memory _supportedCurrencies) {
         owner = msg.sender;
 
         // Feed in allowed currencies
-        for (uint256 i; i < _allowedCurrencies.length; i++) {
-            currencies[address(_allowedCurrencies[i])] = true;
-            allowedCurrencies.push(address(_allowedCurrencies[i]));
+        for (uint256 i; i < _supportedCurrencies.length; i++) {
+            currencies[address(_supportedCurrencies[i])] = true;
+            supportedCurrencies.push(address(_supportedCurrencies[i]));
         }
     }
 
@@ -115,7 +115,7 @@ contract NFTAuction {
         );
         require(listedItem[tokenId][collectionContract] != msg.sender, Errors.ItemAlreadyListed());
         require(reservePrice > 0, Errors.ZeroInput());
-        require(currencies[currency], Errors.CurrencyNotAllowed());
+        require(currencies[currency], Errors.CurrencyNotSupported());
         require(!blackList[msg.sender], Errors.BlackListed(blacklistedFor[msg.sender]));
         _;
     }
@@ -290,6 +290,8 @@ contract NFTAuction {
     /// @dev Only owner can withdraw
     function withdrawFees(address currency, uint256 amount) external onlyOwner {
         require(ownerAccumulatedFees[currency] >= amount, Errors.InsufficientFunds(ownerAccumulatedFees[currency]));
+        require(currencies[currency], Errors.CurrencyNotSupported());
+        
         ownerAccumulatedFees[currency] -= amount;
         IERC20(currency).safeTransfer(msg.sender, amount);
 
@@ -316,22 +318,32 @@ contract NFTAuction {
     /// @notice Get all open Auctions
     /// @return openAuctions ID of open Auctions
     function getOpenAuctions() external view returns (uint256[] memory openAuctions) {
+        uint256 openAuctionCount;
+
+        for (uint256 i = 1; i <= auctionCount; i++) {
+            if (auctions[i].status == Status.OPEN) {
+                openAuctionCount++;
+            }
+        }
+        openAuctions = new uint256[](openAuctionCount);
         uint256 _counter;
-        for (uint256 i; i < auctionCount; ++i) {
+        
+        for (uint256 i = 1; i <= auctionCount; i++) {
             if (auctions[i].status == Status.OPEN) {
                 openAuctions[_counter] = i;
                 _counter++;
             }
         }
+
         return openAuctions;
     }
 
     /// @notice Get all currencies available to trade with
     /// @return addresses of all currencies
-    function getAllowedCurrencies() external view returns (address[] memory) {
-        address[] memory _currencies = new address[](allowedCurrencies.length);
-        for (uint256 i = 0; i < allowedCurrencies.length; ++i) {
-            _currencies[i] = allowedCurrencies[i];
+    function getSupportedCurrencies() external view returns (address[] memory) {
+        address[] memory _currencies = new address[](supportedCurrencies.length);
+        for (uint256 i = 0; i < supportedCurrencies.length; ++i) {
+            _currencies[i] = supportedCurrencies[i];
         }
         return _currencies;
     }
@@ -339,7 +351,7 @@ contract NFTAuction {
     /// @notice Get auction where blacklisted
     /// @return blacklisted boolean
     /// @return auctionId auction ID
-    function getBlacklistedFor() external view returns (bool blacklisted, uint256 auctionId) {
+    function getBlackListedFor() external view returns (bool blacklisted, uint256 auctionId) {
         (blacklisted, auctionId) = (blackList[msg.sender], blacklistedFor[msg.sender]);
     }
 }

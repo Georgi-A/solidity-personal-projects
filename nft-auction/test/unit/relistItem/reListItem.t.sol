@@ -9,7 +9,7 @@ import { Constants } from "src/utils/Constants.sol";
 contract reListItem_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
     }
 
     function test_RevertGiven_AuctionDoesNotExist() external {
@@ -68,7 +68,7 @@ contract reListItem_Unit_Test is Base_Test {
         
         vm.assume(user != sellerOne);
         // it should revert
-        vm.startPrank(user);
+        vm.prank(user);
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.NotOwnerOfAuction.selector
@@ -80,7 +80,7 @@ contract reListItem_Unit_Test is Base_Test {
     function test_RevertWhen_AuctionHasBeenWon() external givenAuctionDoesExist givenDurationIsWithinAllowedDuration {
         wonFinishedAuction();
 
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         // it should revert
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
@@ -91,13 +91,14 @@ contract reListItem_Unit_Test is Base_Test {
         nftAuction.reListItem(1, durationDays, reservePrice);
     }
 
-    function test_RevertWhen_AuctionIsStillOpen(uint256 timeCalledAt) external givenAuctionDoesExist givenDurationIsWithinAllowedDuration {
+    function test_RevertWhen_AuctionIsStillOpen(uint256 calledAt) external givenAuctionDoesExist givenDurationIsWithinAllowedDuration {
         createAuction(1, durationDays);
         uint256 deadline = block.timestamp + (durationDays * 1 days);
 
-        vm.assume(timeCalledAt < block.timestamp + (durationDays * 1 days));
-        vm.warp(timeCalledAt);
+        vm.assume(calledAt < block.timestamp + (durationDays * 1 days));
+        vm.warp(calledAt);
         // it should revert
+        vm.prank(sellerOne);
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.AuctionIsStillOpen.selector, deadline
@@ -115,6 +116,7 @@ contract reListItem_Unit_Test is Base_Test {
         vm.warp(block.timestamp + (durationDays * 1 days) + 1);
         
         // it should relist the item successfully
+        vm.prank(sellerOne);
         vm.expectEmit();
         emit NFTAuction.LogRelistItem(1, block.timestamp + (durationDays * 1 days), reservePrice);
         nftAuction.reListItem(1, durationDays, reservePrice);

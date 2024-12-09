@@ -19,6 +19,7 @@ abstract contract Base_Test is Test {
     //// TOKENS ////
     MockERC20 wethContract;
     MockERC20 daiContract;
+    MockERC20 wBtc;
     IERC20[] supportedTokens;
     MockERC721 nftContract;
 
@@ -67,12 +68,18 @@ abstract contract Base_Test is Test {
 
     function wonFinishedAuction() internal {
         createAuction(tokenOne, durationDays);
-        vm.stopPrank();
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
         nftAuction.createBid(1, amountToDeposit);
-        vm.stopPrank();
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
     }
+
+    function succesfullAuction() internal {
+        wonFinishedAuction();
+        vm.startPrank(sellerOne);
+        nftContract.safeTransfer(bidderOne, tokenOne);
+        nftAuction.sellerWithdraw(1);
+        vm.stopPrank();
+    }   
 
     function toDecimals(uint256 amount) internal pure returns (uint256) {
         return amount * 10 ** 18;

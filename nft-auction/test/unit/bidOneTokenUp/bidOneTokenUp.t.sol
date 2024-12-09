@@ -8,10 +8,9 @@ import {NFTAuction} from "src/NFTAuction.sol";
 contract BidOneTokenUp_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         createAuction(tokenOne, durationDays);
-        vm.stopPrank();
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
     }
 
     function test_RevertGiven_AuctionDoesNotExist(uint256 auctionId) external {
@@ -44,16 +43,17 @@ contract BidOneTokenUp_Unit_Test is Base_Test {
     function test_RevertWhen_UserHasInsufficientFunds() external {
         nftAuction.createBid(1, toDecimals(200));
 
-        vm.startPrank(bidderTwo);
+        vm.prank(bidderTwo);
         nftAuction.createBid(1, toDecimals(1200));
-        vm.stopPrank();
+        
+        uint256 bidderOneBalance = daiContract.balanceOf(bidderOne);
 
         // it should revert
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.InsufficientFunds.selector,
-                daiContract.balanceOf(bidderOne)
+                bidderOneBalance
             )
         });
         nftAuction.bidOneTokenUp(1);
@@ -62,12 +62,11 @@ contract BidOneTokenUp_Unit_Test is Base_Test {
     function test_WhenBidderIsAbleToOutbid() external {
         nftAuction.createBid(1, toDecimals(250));
 
-        vm.startPrank(bidderTwo);
+        vm.prank(bidderTwo);
         nftAuction.createBid(1, toDecimals(700));
-        vm.stopPrank();
 
         // it should outbid by 1 token
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
         vm.expectEmit();
         uint256 expectedDeposit = toDecimals(700 - 250 + 1);
         emit NFTAuction.LogBidOneTokenUp(address(bidderOne), 1, expectedDeposit);

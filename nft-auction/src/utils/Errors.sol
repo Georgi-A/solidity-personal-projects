@@ -34,8 +34,8 @@ library Errors {
     error CantBlackList();
     /// @notice Thrown when bidder tries to blacklist, but has received their NFT
     error YouAreTheOwner();
-    /// @notice Thrown when currency is not allowed
-    error CurrencyNotAllowed();
+    /// @notice Thrown when currency is not supported
+    error CurrencyNotSupported();
     /// @notice Thrown when seller has been blacklisted
     error BlackListed(uint256 forAuctionId);
 

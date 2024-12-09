@@ -8,10 +8,9 @@ import { NFTAuction } from "src/NFTAuction.sol";
 contract bidderWithdraw_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         createAuction(1, durationDays);
-        vm.stopPrank();
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
     }
     function test_RevertGiven_AuctionDoesNotExist() external {
         // it should revert
@@ -41,6 +40,7 @@ contract bidderWithdraw_Unit_Test is Base_Test {
         nftAuction.createBid(1, amountToDeposit);
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
 
+        vm.prank(bidderOne);
         // it should revert
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
@@ -53,14 +53,12 @@ contract bidderWithdraw_Unit_Test is Base_Test {
 
     function test_WhenBidderHasNotWonAuction() external givenAuctionDoesExist {
         nftAuction.createBid(1, toDecimals(250));
-        vm.stopPrank();
-        vm.startPrank(bidderTwo);
+        vm.prank(bidderTwo);
         nftAuction.createBid(1, amountToDeposit);
-        vm.stopPrank();
 
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
 
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
         // it should allow withdraw
         vm.expectEmit();
         emit NFTAuction.LogBidderWithdraw(bidderOne, toDecimals(250));
