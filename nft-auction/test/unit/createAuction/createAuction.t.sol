@@ -67,7 +67,7 @@ contract CreateAuction_Unit_Test is Base_Test {
     function testFuzz_Given_RevertCurrencyIsNotAllowed(address currency) external {
         vm.assume(currency != address(daiContract) && currency != address(wethContract));
         // it should revert
-        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.CurrencyNotAllowed.selector)});
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.CurrencyNotSupported.selector)});
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, currency, reservePrice);
     }
 

@@ -8,9 +8,8 @@ import {NFTAuction} from "src/NFTAuction.sol";
 contract CreateBid_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         createAuction(tokenOne, durationDays);
-        vm.stopPrank();
         vm.startPrank(bidderOne);
     }
 

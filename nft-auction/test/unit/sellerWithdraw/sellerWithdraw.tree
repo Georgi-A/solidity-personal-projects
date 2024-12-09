@@ -8,7 +8,7 @@ sellerWithdraw_Unit_Test
         │   └── it should revert
         ├── when auction is still open
         │   └── it should revert
-        ├── when nft is not yet sent to auction winner
+        ├── when nft is not sent to auction winner
         │   └── it should revert
         └── when auction winner has received nft
             └── it should deduct fee and withdraw

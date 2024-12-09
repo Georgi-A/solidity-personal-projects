@@ -9,9 +9,8 @@ import { Constants } from "src/utils/Constants.sol";
 contract sellerWithdraw_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         wonFinishedAuction();
-        vm.startPrank(sellerOne);
     }
 
     function test_RevertGiven_AuctionDoesNotExist() external {
@@ -28,9 +27,9 @@ contract sellerWithdraw_Unit_Test is Base_Test {
         _;
     }
 
-    function test_RevertWhen_SellerIsNotOwnerOfAuction() external givenAuctionDoesExist {
-        vm.stopPrank();
-        vm.startPrank(sellerTwo);
+    function test_RevertWhen_SellerIsNotOwnerOfAuction(address user) external givenAuctionDoesExist {
+        vm.assume(user != sellerOne);
+        vm.prank(user);
 
         // it should revert
         vm.expectRevert({
@@ -41,39 +40,51 @@ contract sellerWithdraw_Unit_Test is Base_Test {
         nftAuction.sellerWithdraw(1);
     }
 
-    function test_RevertWhen_ReservePriceIsNotMet() external givenAuctionDoesExist {
+    function test_RevertWhen_ReservePriceIsNotMet(uint256 amount) external givenAuctionDoesExist {
+        vm.prank(sellerOne);
         nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), reservePrice);
+
+        amount = bound({ x: amount, min: 1, max: reservePrice - 1});
+        vm.prank(bidderTwo);
+        nftAuction.createBid(2, amount);
 
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
         // it should revert
+        vm.prank(sellerOne);
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.PriceNotMet.selector,
-                reservePrice, 0
+                reservePrice, amount
             )
         });
         nftAuction.sellerWithdraw(2);
     }
 
-    function test_RevertWhen_AuctionIsStillOpen() external givenAuctionDoesExist {
+    function test_RevertWhen_AuctionIsStillOpen(uint256 timeAt) external givenAuctionDoesExist {
+        vm.prank(sellerOne);
         nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), reservePrice);
 
-        vm.startPrank(bidderTwo);
+        vm.prank(bidderTwo);
         nftAuction.createBid(2, amountToDeposit);
-        vm.stopPrank();
+
+        uint256 deadline = block.timestamp + (durationDays * 1 days);
+
+        vm.assume(timeAt < deadline);
+        vm.warp(timeAt);
 
         // it should revert
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
                 Errors.AuctionIsStillOpen.selector,
-                block.timestamp + (durationDays * 1 days)
+                deadline
             )
         });
         nftAuction.sellerWithdraw(2);
     }
 
-    function test_RevertWhen_NftIsNotYetSentToAuctionWinner() external givenAuctionDoesExist {
+    function test_RevertWhen_NftIsNotSentToAuctionWinner() external givenAuctionDoesExist {
+        vm.prank(sellerOne);
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
         // it should revert
         vm.expectRevert({
@@ -86,6 +97,7 @@ contract sellerWithdraw_Unit_Test is Base_Test {
     }
 
     function test_WhenAuctionWinnerHasReceivedNft() external givenAuctionDoesExist {
+        vm.startPrank(sellerOne);
         nftContract.safeTransfer(bidderOne, tokenOne);
         uint256 feeAmount = amountToDeposit * Constants.FEE / 10000;
         uint256 expectedAmount = amountToDeposit - feeAmount;

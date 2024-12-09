@@ -8,12 +8,12 @@ import { NFTAuction } from "src/NFTAuction.sol";
 contract blackListSeller_Unit_Test is Base_Test {
     function setUp() public virtual override {
         Base_Test.setUp();
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         wonFinishedAuction();
     }
 
     function test_RevertGiven_AuctionDoesNotExist() external {
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
         
         // it should revert
         vm.expectRevert({
@@ -29,7 +29,7 @@ contract blackListSeller_Unit_Test is Base_Test {
     }
 
     function test_RevertWhen_BidderHasNotWonTheAuction() external givenAuctionDoesExist {
-        vm.startPrank(bidderTwo);
+        vm.prank(bidderTwo);
     
         // it should revert
         vm.expectRevert({
@@ -42,11 +42,10 @@ contract blackListSeller_Unit_Test is Base_Test {
 
     function test_RevertWhen_BidderHasWonAndReceivedNFT() external givenAuctionDoesExist {    
         vm.warp(block.timestamp + 1 days);
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         nftContract.safeTransfer(bidderOne, tokenOne);
-        vm.stopPrank();
-        vm.startPrank(bidderOne);
-        
+        vm.prank(bidderOne);
+    
         // it should revert
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
@@ -58,9 +57,8 @@ contract blackListSeller_Unit_Test is Base_Test {
 
     function test_WhenEnoughTimeHasPassed() external givenAuctionDoesExist {  
         vm.warp(block.timestamp + 1 days);
-
-        vm.startPrank(bidderOne);
-
+        vm.prank(bidderOne);
+        
         // it should blacklist seller
         vm.expectEmit();
         emit NFTAuction.LogBlackListSeller(bidderOne, sellerOne, amountToDeposit);
@@ -68,10 +66,9 @@ contract blackListSeller_Unit_Test is Base_Test {
     }
 
     function test_WhenSellerDoesNotOwnTheListedNFT() external givenAuctionDoesExist {
-        vm.startPrank(sellerOne);
+        vm.prank(sellerOne);
         nftContract.safeTransfer(bidderTwo, tokenOne);
-        vm.stopPrank();
-        vm.startPrank(bidderOne);
+        vm.prank(bidderOne);
 
         // it should blacklist seller
         vm.expectEmit();
