@@ -1,0 +1,13 @@
+CreateBid_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    ├── when auction has finished
+    │   └── it should revert
+    ├── given zero amount
+    │   └── it should revert
+    ├── given amount less than higher bid
+    │   └── it should revert
+    ├── when user has insufficient funds
+    │   └── it should revert
+    └── given all parameters are valid
+        └── it should create a bid

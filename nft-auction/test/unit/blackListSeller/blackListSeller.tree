@@ -1,0 +1,12 @@
+blackListSeller_Unit_Test
+    ├── given auction does not exist
+    │   └── it should revert
+    └── given auction does exist
+        ├── when bidder has not won the auction
+        │   └── it should revert
+        ├── when bidder has won and received NFT
+        │   └── it should revert
+        ├── when enough time has passed seller does not own the listed NFT
+        │   └── it should blacklist seller
+        └── when seller does not own the listed NFT
+            └── it should blacklist seller

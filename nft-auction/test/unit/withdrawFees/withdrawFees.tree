@@ -1,0 +1,11 @@
+withdrawFees_Unit_Test
+    ├── when user is not owner
+    │   └── it should revert
+    └── when user is owner
+        ├── given currency is not supported
+        │   └── it should revert
+        └── given currency is supported
+            ├── given insufficient amount
+            │   └── it should revert
+            └── given sufficient amount
+                └── it should withdraw
