@@ -1,5 +1,6 @@
 [profile.default]
 src = "src"
+extra_source_paths = ["src/utils"]
 block_timestamp = 1_680_220_800
 out = "out"
 fuzz = { runs = 256 }

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
 
 contract getSupportedCurrencies_Unit_Test is Base_Test {
     function setUp() public virtual override {

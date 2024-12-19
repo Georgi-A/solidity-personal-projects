@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
-import { Errors } from "src/utils/Errors.sol";
-import { NFTAuction } from "src/NFTAuction.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
+import {Errors} from "src/utils/Errors.sol";
+import {NFTAuction} from "src/NFTAuction.sol";
 
 contract bidderWithdraw_Unit_Test is Base_Test {
     function setUp() public virtual override {
@@ -12,13 +13,10 @@ contract bidderWithdraw_Unit_Test is Base_Test {
         createAuction(1, durationDays);
         vm.prank(bidderOne);
     }
+
     function test_RevertGiven_AuctionDoesNotExist() external {
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionDoesNotExist.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionDoesNotExist.selector)});
         nftAuction.bidderWithdraw(2);
     }
 
@@ -28,11 +26,7 @@ contract bidderWithdraw_Unit_Test is Base_Test {
 
     function test_RevertWhen_BidderIsNotPartOfAuction() external givenAuctionDoesExist {
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.NotPartOfAuction.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.NotPartOfAuction.selector)});
         nftAuction.bidderWithdraw(1);
     }
 
@@ -42,12 +36,7 @@ contract bidderWithdraw_Unit_Test is Base_Test {
 
         vm.prank(bidderOne);
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.YouAreTheWinner.selector,
-                1
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.YouAreTheWinner.selector, 1)});
         nftAuction.bidderWithdraw(1);
     }
 

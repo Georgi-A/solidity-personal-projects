@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
-import { Errors } from "src/utils/Errors.sol";
-import { NFTAuction } from "src/NFTAuction.sol";
-import { Constants } from "src/utils/Constants.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
+import {Errors} from "src/utils/Errors.sol";
+import {NFTAuction} from "src/NFTAuction.sol";
+import {Constants} from "src/utils/Constants.sol";
 
 contract sellerWithdraw_Unit_Test is Base_Test {
     function setUp() public virtual override {
@@ -15,11 +16,7 @@ contract sellerWithdraw_Unit_Test is Base_Test {
 
     function test_RevertGiven_AuctionDoesNotExist() external {
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionDoesNotExist.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionDoesNotExist.selector)});
         nftAuction.sellerWithdraw(2);
     }
 
@@ -32,11 +29,7 @@ contract sellerWithdraw_Unit_Test is Base_Test {
         vm.prank(user);
 
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.NotOwnerOfAuction.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.NotOwnerOfAuction.selector)});
         nftAuction.sellerWithdraw(1);
     }
 
@@ -44,19 +37,14 @@ contract sellerWithdraw_Unit_Test is Base_Test {
         vm.prank(sellerOne);
         nftAuction.createAuction(address(nftContract), 2, durationDays, address(daiContract), reservePrice);
 
-        amount = bound({ x: amount, min: 1, max: reservePrice - 1});
+        amount = bound({x: amount, min: 1, max: reservePrice - 1});
         vm.prank(bidderTwo);
         nftAuction.createBid(2, amount);
 
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
         // it should revert
         vm.prank(sellerOne);
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.PriceNotMet.selector,
-                reservePrice, amount
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.PriceNotMet.selector, reservePrice, amount)});
         nftAuction.sellerWithdraw(2);
     }
 
@@ -74,12 +62,7 @@ contract sellerWithdraw_Unit_Test is Base_Test {
 
         // it should revert
         vm.prank(sellerOne);
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionIsStillOpen.selector,
-                deadline
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionIsStillOpen.selector, deadline)});
         nftAuction.sellerWithdraw(2);
     }
 
@@ -87,12 +70,7 @@ contract sellerWithdraw_Unit_Test is Base_Test {
         vm.prank(sellerOne);
         vm.warp(block.timestamp + (durationDays * 1 days) + 1 minutes);
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.NftNotSent.selector,
-                1, bidderOne
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.NftNotSent.selector, 1, bidderOne)});
         nftAuction.sellerWithdraw(1);
     }
 

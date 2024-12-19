@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+// Auction dependencies
 import {Base_Test} from "test/Base.t.sol";
 import {Errors} from "src/utils/Errors.sol";
 import {Constants} from "src/utils/Constants.sol";
@@ -73,14 +74,14 @@ contract CreateAuction_Unit_Test is Base_Test {
 
     function testFuzz_RevertWhen_SellerHasBeenBlacklisted(uint256 duration) external {
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
-        
+
         vm.startPrank(bidderOne);
         nftAuction.createBid(1, toDecimals(250));
         uint256 sendNftDeadline = block.timestamp + (5 days);
         vm.assume(duration > sendNftDeadline);
         vm.warp(duration);
         nftAuction.blackListSeller(1);
-        
+
         // it should revert
         vm.startPrank(sellerOne);
         vm.expectRevert({revertData: abi.encodeWithSelector(Errors.BlackListed.selector, 1)});
@@ -94,7 +95,7 @@ contract CreateAuction_Unit_Test is Base_Test {
 
         vm.startPrank(bidderOne);
         nftAuction.createBid(1, toDecimals(250));
-        
+
         vm.warp(block.timestamp + 4 days + 1 minutes);
 
         vm.startPrank(sellerOne);
@@ -113,7 +114,7 @@ contract CreateAuction_Unit_Test is Base_Test {
         emit NFTAuction.LogCreateAuction(address(sellerOne), address(nftContract), 1, block.timestamp + 4 days);
         nftAuction.createAuction(address(nftContract), tokenOne, durationDays, address(daiContract), reservePrice);
         NFTAuction.Auction memory auction = nftAuction.getAuction(1);
-        
+
         assertEq(auction.auctionId, 1);
         assertEq(auction.collectionContract, address(nftContract));
         assertEq(auction.tokenId, tokenOne);

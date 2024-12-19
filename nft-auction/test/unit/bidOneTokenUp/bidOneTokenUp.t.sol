@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+// Auction dependencies
 import {Base_Test} from "test/Base.t.sol";
 import {Errors} from "src/utils/Errors.sol";
 import {NFTAuction} from "src/NFTAuction.sol";
@@ -15,13 +16,9 @@ contract BidOneTokenUp_Unit_Test is Base_Test {
 
     function test_RevertGiven_AuctionDoesNotExist(uint256 auctionId) external {
         vm.assume(auctionId > 1);
-        
+
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionDoesNotExist.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionDoesNotExist.selector)});
         nftAuction.bidOneTokenUp(auctionId);
     }
 
@@ -31,12 +28,7 @@ contract BidOneTokenUp_Unit_Test is Base_Test {
         vm.warp(duration);
 
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionFinished.selector,
-                deadline
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionFinished.selector, deadline)});
         nftAuction.bidOneTokenUp(1);
     }
 
@@ -45,17 +37,12 @@ contract BidOneTokenUp_Unit_Test is Base_Test {
 
         vm.prank(bidderTwo);
         nftAuction.createBid(1, toDecimals(1200));
-        
+
         uint256 bidderOneBalance = daiContract.balanceOf(bidderOne);
 
         // it should revert
         vm.prank(bidderOne);
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.InsufficientFunds.selector,
-                bidderOneBalance
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.InsufficientFunds.selector, bidderOneBalance)});
         nftAuction.bidOneTokenUp(1);
     }
 
