@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
 
 contract getBlackListedFor_Unit_Test is Base_Test {
     function setUp() public virtual override {
@@ -16,7 +17,7 @@ contract getBlackListedFor_Unit_Test is Base_Test {
         vm.stopPrank();
         vm.prank(bidderOne);
         nftAuction.blackListSeller(1);
-        
+
         // should return bool and id of auction
         vm.prank(sellerOne);
         (bool blacklisted, uint256 auctionId) = nftAuction.getBlackListedFor();

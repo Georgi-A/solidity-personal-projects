@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
-import { Errors } from "src/utils/Errors.sol";
-import { NFTAuction } from "src/NFTAuction.sol";
-import { Constants } from "src/utils/Constants.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
+import {Errors} from "src/utils/Errors.sol";
+import {NFTAuction} from "src/NFTAuction.sol";
+import {Constants} from "src/utils/Constants.sol";
 
 contract reListItem_Unit_Test is Base_Test {
     function setUp() public virtual override {
@@ -14,11 +15,7 @@ contract reListItem_Unit_Test is Base_Test {
 
     function test_RevertGiven_AuctionDoesNotExist() external {
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionDoesNotExist.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionDoesNotExist.selector)});
         nftAuction.reListItem(2, durationDays, reservePrice);
     }
 
@@ -65,15 +62,11 @@ contract reListItem_Unit_Test is Base_Test {
     {
         createAuction(1, durationDays);
         vm.warp(block.timestamp + durationDays);
-        
+
         vm.assume(user != sellerOne);
         // it should revert
         vm.prank(user);
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.NotOwnerOfAuction.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.NotOwnerOfAuction.selector)});
         nftAuction.reListItem(1, durationDays, reservePrice);
     }
 
@@ -83,15 +76,16 @@ contract reListItem_Unit_Test is Base_Test {
         vm.prank(sellerOne);
         // it should revert
         vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.WonAuction.selector,
-                1, bidderOne, amountToDeposit, reservePrice
-            )
+            revertData: abi.encodeWithSelector(Errors.WonAuction.selector, 1, bidderOne, amountToDeposit, reservePrice)
         });
         nftAuction.reListItem(1, durationDays, reservePrice);
     }
 
-    function test_RevertWhen_AuctionIsStillOpen(uint256 calledAt) external givenAuctionDoesExist givenDurationIsWithinAllowedDuration {
+    function test_RevertWhen_AuctionIsStillOpen(uint256 calledAt)
+        external
+        givenAuctionDoesExist
+        givenDurationIsWithinAllowedDuration
+    {
         createAuction(1, durationDays);
         uint256 deadline = block.timestamp + (durationDays * 1 days);
 
@@ -99,11 +93,7 @@ contract reListItem_Unit_Test is Base_Test {
         vm.warp(calledAt);
         // it should revert
         vm.prank(sellerOne);
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.AuctionIsStillOpen.selector, deadline
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.AuctionIsStillOpen.selector, deadline)});
         nftAuction.reListItem(1, durationDays, reservePrice);
     }
 
@@ -111,10 +101,10 @@ contract reListItem_Unit_Test is Base_Test {
         external
         givenAuctionDoesExist
         givenDurationIsWithinAllowedDuration
-    {   
+    {
         createAuction(1, durationDays);
         vm.warp(block.timestamp + (durationDays * 1 days) + 1);
-        
+
         // it should relist the item successfully
         vm.prank(sellerOne);
         vm.expectEmit();

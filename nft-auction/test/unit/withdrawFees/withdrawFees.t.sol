@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { Base_Test } from "test/Base.t.sol";
-import { Errors } from "src/utils/Errors.sol";
-import { NFTAuction } from "src/NFTAuction.sol";
+// Auction dependencies
+import {Base_Test} from "test/Base.t.sol";
+import {Errors} from "src/utils/Errors.sol";
+import {NFTAuction} from "src/NFTAuction.sol";
 
 contract withdrawFees_Unit_Test is Base_Test {
     function setUp() public virtual override {
@@ -16,11 +17,7 @@ contract withdrawFees_Unit_Test is Base_Test {
         vm.assume(user != owner);
         vm.prank(user);
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.OnlyOwner.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.OnlyOwner.selector)});
         nftAuction.withdrawFees(address(daiContract), reservePrice);
     }
 
@@ -32,11 +29,7 @@ contract withdrawFees_Unit_Test is Base_Test {
         vm.assume(currency != address(daiContract) && currency != address(wethContract));
         vm.prank(owner);
         // it should revert
-        vm.expectRevert({
-            revertData: abi.encodeWithSelector(
-                Errors.CurrencyNotSupported.selector
-            )
-        });
+        vm.expectRevert({revertData: abi.encodeWithSelector(Errors.CurrencyNotSupported.selector)});
         nftAuction.withdrawFees(currency, 0);
     }
 
@@ -50,8 +43,7 @@ contract withdrawFees_Unit_Test is Base_Test {
         // it should revert
         vm.expectRevert({
             revertData: abi.encodeWithSelector(
-                Errors.InsufficientFunds.selector,
-                nftAuction.getAccumulatedFees(address(daiContract))
+                Errors.InsufficientFunds.selector, nftAuction.getAccumulatedFees(address(daiContract))
             )
         });
         nftAuction.withdrawFees(address(daiContract), amount);
@@ -62,7 +54,9 @@ contract withdrawFees_Unit_Test is Base_Test {
         uint256 ownerBalance = nftAuction.getAccumulatedFees(address(daiContract));
         // it should revert
         vm.expectEmit();
-        emit NFTAuction.LogWithdrawFees(owner, address(daiContract), nftAuction.getAccumulatedFees(address(daiContract)));
+        emit NFTAuction.LogWithdrawFees(
+            owner, address(daiContract), nftAuction.getAccumulatedFees(address(daiContract))
+        );
         nftAuction.withdrawFees(address(daiContract), nftAuction.getAccumulatedFees(address(daiContract)));
 
         assertEq(ownerBalance, daiContract.balanceOf(owner));

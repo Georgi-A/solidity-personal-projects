@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: UNLICENCED
 pragma solidity 0.8.28;
 
+// Auction dependencies
 import {Test} from "forge-std/Test.sol";
 import {NFTAuction} from "src/NFTAuction.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {MockERC721} from "test/mocks/MockERC721.sol";
+import { MockSwapRouter } from "test/mocks/MockSwapRouter.sol";
+
+// Openzeppelin dependencies
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 abstract contract Base_Test is Test {
     NFTAuction nftAuction;
+    MockSwapRouter swapRouter;
 
     //// CONSTANTS ////
     uint256 reservePrice = 200 * 10 ** 18;
@@ -40,7 +45,7 @@ abstract contract Base_Test is Test {
         vm.startPrank(owner);
         supportedTokens.push(daiContract);
         supportedTokens.push(wethContract);
-        nftAuction = new NFTAuction(supportedTokens);
+        nftAuction = new NFTAuction(swapRouter, supportedTokens);
         vm.stopPrank();
 
         //// SET BIDDERS WITH FUNDS AND APPROVE////
@@ -63,7 +68,7 @@ abstract contract Base_Test is Test {
 
     //// HELPERS ////
     function createAuction(uint256 tokenId, uint256 duration) internal {
-        nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);  
+        nftAuction.createAuction(address(nftContract), tokenId, duration, address(daiContract), reservePrice);
     }
 
     function wonFinishedAuction() internal {
@@ -79,7 +84,7 @@ abstract contract Base_Test is Test {
         nftContract.safeTransfer(bidderOne, tokenOne);
         nftAuction.sellerWithdraw(1);
         vm.stopPrank();
-    }   
+    }
 
     function toDecimals(uint256 amount) internal pure returns (uint256) {
         return amount * 10 ** 18;
