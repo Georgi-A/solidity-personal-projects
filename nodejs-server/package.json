@@ -1,0 +1,29 @@
+{
+  "name": "bento-server",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@graphprotocol/client-cli": "^3.0.7"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.12.4",
+    "@morpho-org/blue-sdk": "^2.2.0",
+    "@morpho-org/blue-sdk-ethers": "^2.1.0",
+    "@morpho-org/morpho-ts": "^2.0.0",
+    "alchemy-sdk": "^3.5.1",
+    "body-parser": "^1.20.3",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "express": "^4.21.2",
+    "graphql": "^16.10.0",
+    "graphql-request": "^7.1.2",
+    "urql": "^4.2.1"
+  }
+}
