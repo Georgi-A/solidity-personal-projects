@@ -19,12 +19,12 @@ const FILE_NAME = "sparkApy.json";
 
 router.get("/spark", async (req, res) => {
   try {
-    const latestBlockNum = await provider.getBlockNumber();
-    const blockInfo = await provider.getBlock(latestBlockNum);
+    const blockNumber = await provider.getBlockNumber();
+    const blockInfo = await provider.getBlock(blockNumber);
 
-    const ssrBig = await contract.ssr();
+    const ssr = await contract.ssr();
 
-    const ssrFloat = Number(ssrBig) / 1e27;
+    const ssrFloat = Number(ssr) / 1e27;
 
     const annualFactor = Math.pow(ssrFloat, SECONDS_PER_YEAR);
 
@@ -32,9 +32,9 @@ router.get("/spark", async (req, res) => {
 
     const timestamp = new Date(blockInfo.timestamp * 1000).toLocaleString();
     const record = {
-      blockNumber: latestBlockNum,
+      blockNumber,
       timestamp,
-      ssr: ssrBig.toString(),
+      ssr: ssr.toString(),
       annualApy
     };
 
@@ -45,16 +45,9 @@ router.get("/spark", async (req, res) => {
     existingData.push(record);
 
     fs.writeFileSync(FILE_NAME, JSON.stringify(existingData, null, 2));
-    console.log(`[${timestamp}] APY updated => ${annualApy.toFixed(4)}%`);
   } catch (err) {
-    console.error("Error in storeApyHourly:", err);
+    console.error("Error: ", err);
   }
-});
+})
 
-setInterval(() => {
-  storeApyHourly().catch(console.error);
-}, 3600000);
-
-storeApyHourly().catch(console.error);
-
-module.exports = routes;
+module.exports = router;
