@@ -42,14 +42,12 @@ router.get("/ethena", async (req, res) => {
           const numerator = dataNumber * 3n * 365n * 1000000n;
 
           const eightHourApy = (Number(numerator) / Number(totalAssetsBigInt)) / 1000000;
-
-          const date = new Date(blockInfo.timestamp * 1000);
-
+          
           results.push({
             blockNumber: log.blockNumber,
             rewards: dataNumber.toString(),              
             totalAssets: totalAssetsBigInt.toString(),
-            date: date.toLocaleString(),
+            timestamp: blockInfo.timestamp,
             apy: Number(eightHourApy)
           });
         }
